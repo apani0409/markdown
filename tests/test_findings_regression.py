@@ -34,6 +34,13 @@ CASES = [
     # marko + mistletoe: treat "-<NBSP>--" as a thematic break; a non-breaking
     # space is not a valid thematic-break space, so it must stay a paragraph.
     ("nbsp-thematic-break", "-\xa0--", "<p>-\xa0--</p>\n", {"marko", "mistletoe"}),
+    # mistletoe: a lone "." is not a list marker (ordered markers need a digit).
+    ("mistletoe-lone-dot-list", ".", "<p>.</p>\n", {"mistletoe"}),
+    # mistletoe: setext heading not recognized inside a block quote.
+    ("mistletoe-setext-in-bq", ">r\n>=", "<blockquote>\n<h1>r</h1>\n</blockquote>\n",
+     {"mistletoe"}),
+    # mistletoe: autolink wrongly accepts a tab (autolinks may not contain whitespace).
+    ("mistletoe-autolink-tab", "<hs:\t>", "<p>&lt;hs:\t&gt;</p>\n", {"mistletoe"}),
 ]
 
 
