@@ -119,8 +119,41 @@ SAFE : -> '<p><em>hi</em> <!-- raw HTML omitted -->x<!-- raw HTML omitted --> <a
 Disclosure discipline: security-relevant findings go to maintainers privately
 first and live only in the git-ignored `findings/` directory until disclosed.
 
-## 6. Milestone status
+## 6. M1 results (2026-06-29)
 
-- **M1 — harness + scorecard:** in progress.
-- **M2 — differential fuzzing:** not started (gated on M1 zero-false-positive).
+The harness runs the full corpus in ~1 s. Scorecard (`reports/scorecard.*`):
+
+| Parser | Version | Passed / 652 | Pass rate |
+|---|---|---:|---:|
+| markdown-it-py | 4.2.0 | 652 | 100.0% |
+| marko | 2.2.3 | 652 | 100.0% |
+| mistletoe | 1.5.1 | 628 | 96.3% |
+| cmark (ref) | 0.31.2 | 652 | 100.0% |
+
+**M1 done-criterion — met.** Reference fidelity is 652/652, so the normalizer
+false-positive rate is **0.0%**, and zero comparisons are classified as
+normalization artifacts. Crucially, three *independent* implementations
+(cmark, markdown-it-py, marko) all reach 100% through the same normalizer — if
+the normalizer were collapsing real differences or leaving formatting noise,
+they could not all be perfect. This is the objective evidence that reported
+divergences are genuine.
+
+mistletoe 1.5.1's 24 failures (all `spec_noncompliance`, all flagged
+`possible_version_skew` because mistletoe declares no spec version) cluster as:
+
+| Section | fails | Section | fails |
+|---|---:|---|---:|
+| Emphasis and strong emphasis | 7 | Backslash escapes | 2 |
+| Raw HTML | 6 | Entity/numeric char refs | 2 |
+| Link reference definitions | 3 | Setext / Code spans / Links / Images | 1 each |
+
+Failing example numbers: 12, 14, 27, 41, 91, 209, 210, 211, 343, 352, 354, 359,
+363, 380, 385, 395, 508, 590, 619, 620, 624, 625, 626, 632. These are the
+high-value seeds for M2 differential fuzzing and M3 triage (each must still pass
+the version-skew gate before any upstream filing).
+
+## 7. Milestone status
+
+- **M1 — harness + scorecard:** ✅ done (criterion met, scorecard shipped).
+- **M2 — differential fuzzing:** ready to start (gate cleared).
 - **M3 — upstream contribution:** not started.

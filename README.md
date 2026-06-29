@@ -15,8 +15,10 @@ official CommonMark `spec.txt` and the `cmark` C reference), not opinion.
 
 Built in strict milestone order (see [`docs/analysis.md`](docs/analysis.md)):
 
-- **M1 — Harness + compliance scorecard** — *in progress.*
-- **M2 — Differential fuzzing** — gated on M1's zero-false-positive criterion.
+- **M1 — Harness + compliance scorecard** — ✅ **done.** Full `spec.txt` runs
+  across all SUTs + the cmark reference with **zero normalization false
+  positives** (reference fidelity 652/652). Scorecard below.
+- **M2 — Differential fuzzing** — next (M1's criterion is met).
 - **M3 — Upstream contribution** — pending.
 
 ## Parsers under test
@@ -45,8 +47,22 @@ toolchain `cmake` + a C compiler are required). No pip binding ships exactly
 
 ## Compliance scorecard
 
-> Populated when M1 completes — a per-parser pass/fail table against
-> CommonMark 0.31.2, summarized by section.
+Per-parser pass/fail against the official CommonMark **0.31.2** `spec.txt` (652
+examples), compared after the official `normalize_html`. Full breakdown in
+[`reports/scorecard.md`](reports/scorecard.md) (regenerate with
+`cm-difftest scorecard`).
+
+| Parser | Version | Passed | Pass rate |
+|---|---|---:|---:|
+| markdown-it-py | 4.2.0 | 652 / 652 | **100.0%** |
+| marko | 2.2.3 | 652 / 652 | **100.0%** |
+| mistletoe | 1.5.1 | 628 / 652 | 96.3% |
+| cmark *(reference)* | 0.31.2 | 652 / 652 | 100.0% |
+
+**M1 criterion met:** the reference matches `spec.txt` on 652/652 examples →
+normalizer false-positive rate **0.0%**. mistletoe's 24 gaps are genuine
+disagreements (clustered in Raw HTML, Emphasis, and Link reference definitions),
+not formatting artifacts — the differential-fuzzing seed list for M2.
 
 ## Layout
 
