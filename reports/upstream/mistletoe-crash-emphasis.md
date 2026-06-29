@@ -23,12 +23,21 @@ Traceback (most recent call last):
 IndexError: string index out of range
 ```
 
-## Root cause
+A smaller, generalized minimal trigger (9 chars) and the whole class were found
+later: **`**"****_*`** — and 100+ variants of the shape `**<sep>****<sep>*` with
+`sep ∈ {" + _ ~ \`}`.
 
-In `core_tokens.process_emphasis`, `closer.type[0]` is indexed unconditionally,
-but for one delimiter in this configuration `closer.type` is the empty string,
-so `[0]` raises. A guard for an empty `type` (or ensuring delimiters always have
-a non-empty `type`) would fix it.
+## Root cause (located)
+
+`Delimiter.remove(n, left=False)` keeps the wrong slice: `self.type = self.type[:n]`
+(the first n chars) instead of `self.type[:-n]` (dropping the n removed chars).
+This desynchronizes `.type` from `.number`; after further removals `.type` can
+become `''` while `.number > 0`, so `process_emphasis` crashes at `closer.type[0]`.
+
+**A verified one-character fix + tests is prepared** —
+[`mistletoe-crash-PR.md`](mistletoe-crash-PR.md) and [`patches/`](patches/).
+Validated against mistletoe 1.5.1: fixes all 100+ crashers, **335 tests pass**
+(no regressions).
 
 ## Expected
 

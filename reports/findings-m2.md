@@ -159,6 +159,13 @@ bottom = star_bottom if closer.type[0] == '*' else underscore_bottom
 `closer.type[0]` indexes out of range. Found by the Atheris coverage-guided
 target after ~262 k executions. Confidence: **high** (deterministic repro).
 
+**Update — root cause + verified fix.** Reduced further to a 9-char minimal
+(`**"****_*`) and shown to be a *class* (100+ variants of `**<sep>****<sep>*`).
+Root cause: `Delimiter.remove(n, left=False)` uses `self.type[:n]` instead of
+`self.type[:-n]`, desyncing `type` from `number` until `type` empties. A
+one-character fix + tests is prepared and validated (all 100+ crashers fixed,
+335 mistletoe tests pass) — see [`upstream/mistletoe-crash-PR.md`](upstream/mistletoe-crash-PR.md).
+
 ### mistletoe + marko (shared)
 
 **X-3 — trailing tab-bearing blank line leaks into an indented code block.**

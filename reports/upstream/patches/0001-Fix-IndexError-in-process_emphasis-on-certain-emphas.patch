@@ -1,0 +1,60 @@
+From b1070cd711fffb9d45bc7446e0e272d6890c08e8 Mon Sep 17 00:00:00 2001
+From: cmd <a@b.c>
+Date: Mon, 29 Jun 2026 21:32:20 +0000
+Subject: [PATCH] Fix: IndexError in process_emphasis on certain emphasis runs
+
+Delimiter.remove(n, left=False) set self.type = self.type[:n] (keeping the
+first n chars) instead of self.type[:-n] (dropping the n removed chars). This
+desynchronized .type from .number; after further removals .type could become
+empty while .number > 0, so process_emphasis crashed at closer.type[0]
+(IndexError) on inputs such as '**"****_*'. Keep the left part on right-side
+removal; add unit + integration regression tests.
+---
+ mistletoe/core_tokens.py |  2 +-
+ test/test_core_tokens.py | 17 +++++++++++++++++
+ 2 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/mistletoe/core_tokens.py b/mistletoe/core_tokens.py
+index 3e9a56b..663778b 100644
+--- a/mistletoe/core_tokens.py
++++ b/mistletoe/core_tokens.py
+@@ -441,7 +441,7 @@ class Delimiter:
+             return True
+         self.end = self.end - n
+         self.number = self.end - self.start
+-        self.type = self.type[:n]
++        self.type = self.type[:-n]
+         return True
+ 
+     def closed_by(self, other):
+diff --git a/test/test_core_tokens.py b/test/test_core_tokens.py
+index cc5a296..46eb7bc 100644
+--- a/test/test_core_tokens.py
++++ b/test/test_core_tokens.py
+@@ -42,6 +42,23 @@ class TestCoreTokens(TestCase):
+         delimiter = Delimiter(4, 6, 'abcd**')
+         self.assertFalse(delimiter.remove(2))
+ 
++    def test_delimiter_remove_right_keeps_type_in_sync(self):
++        # Removing from the right must keep `type` and `number` consistent:
++        # the remaining run is the LEFT part, i.e. type[:-n]. (A previous bug
++        # used type[:n], desyncing the two and eventually leaving type empty.)
++        delimiter = Delimiter(0, 3, '***')
++        self.assertTrue(delimiter.remove(1, left=False))
++        self.assertEqual(delimiter.number, 2)
++        self.assertEqual(delimiter.type, '**')
++        self.assertEqual(len(delimiter.type), delimiter.number)
++
++    def test_emphasis_runs_do_not_crash(self):
++        # Certain emphasis-delimiter runs used to raise IndexError in
++        # process_emphasis (closer.type[0] on an emptied type). Minimal cases:
++        import mistletoe
++        for text in ('**"****_*', '**+****+*', '**`****~*'):
++            mistletoe.markdown(text)  # must not raise
++
+     def test_follows(self):
+         string = '(foobar)'
+         self.assertTrue(follows(string, 6, ')'))
+-- 
+2.43.0
+
