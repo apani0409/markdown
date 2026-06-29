@@ -12,14 +12,16 @@ session that produced these had read-only, single-repo GitHub scope).
 | [marko-bang-html-block.md](marko-bang-html-block.md) | marko | `<!` (no ASCII letter) wrongly starts an HTML block — one-line fix | medium |
 | [marko-lone-list-marker-eof.md](marko-lone-list-marker-eof.md) | marko | lone list marker at EOF → paragraph | medium |
 | [unclosed-fence-eof-newline.md](unclosed-fence-eof-newline.md) | markdown-it-py, marko | unclosed fence at EOF drops final newline | low/med |
+| [tab-partial-consume-blockquote.md](tab-partial-consume-blockquote.md) | markdown-it-py, mistletoe | partial tab after block-quote marker drops a space | medium |
+| [mistletoe-image-alt-softbreak.md](mistletoe-image-alt-softbreak.md) | mistletoe | soft break dropped in image `alt` | medium |
 | [commonmark-spec-test-proposals.md](commonmark-spec-test-proposals.md) | commonmark-spec | two under-specified LRD edge cases | spec |
 
-Additional verified findings in `../findings-m2.md` not yet written up as
-standalone drafts (same evidence, ready to expand): marko unterminated-LRD-title
-fallback (M-2) and block-quote indented-code blank line (M-3); markdown-it-py
-lazy-continuation-after-LRD (MI-1); shared tab partial-consumption (X-2) and
-trailing-tab indented-code (X-3); mistletoe softbreak-in-alt (MT-1) and bare-`)`
-list marker (MT-2).
+The full adversarially-verified catalog (25 confirmed bugs) is in
+[`../findings-verified.md`](../findings-verified.md). Findings with evidence but
+no standalone draft yet (ready to expand from the catalog): marko
+unterminated-LRD-title fallback and block-quote indented-code blank line;
+markdown-it-py lazy-continuation-after-LRD; mistletoe bare-`)` list marker; and
+several emphasis/code-span and list edge cases.
 
 [`reproduce.py`](reproduce.py) demonstrates the key cases with only the
 third-party parsers installed (no cm-difftest dependency).
