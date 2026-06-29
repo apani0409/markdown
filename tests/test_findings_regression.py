@@ -35,6 +35,39 @@ CASES = [
 ]
 
 
+# Crash-class finding (spec §3): mistletoe raises on certain emphasis runs while
+# every other implementation renders it. Found by the Atheris target, minimized
+# with ddmin. Root cause: mistletoe/core_tokens.py process_emphasis ->
+# closer.type[0] with an empty closer.type.
+MISTLETOE_CRASH_INPUT = '****"************+****'
+
+
+def test_mistletoe_crash_reproduces():
+    import mistletoe
+
+    with pytest.raises(IndexError):
+        mistletoe.markdown(MISTLETOE_CRASH_INPUT)
+
+    # the other implementations must NOT crash on the same input
+    from cm_difftest.adapters import get_adapter, Mode
+
+    for name in ("markdown-it-py", "marko", "cmark"):
+        out = get_adapter(name).render(MISTLETOE_CRASH_INPUT, mode=Mode.RAW)
+        assert isinstance(out, str) and out
+
+
+def test_runner_guards_the_mistletoe_crash():
+    """The harness must capture the crash, not die with the parser (spec §3)."""
+    from cm_difftest.runner import DifferentialRunner
+    from cm_difftest.runner.result import Status
+
+    comp = DifferentialRunner(timeout_s=10).run(MISTLETOE_CRASH_INPUT)
+    assert comp.has_failure()
+    mistletoe_result = comp.by_name("mistletoe")
+    assert mistletoe_result.status is Status.EXCEPTION
+    assert mistletoe_result.error_type == "IndexError"
+
+
 @pytest.mark.parametrize("case_id,md,correct,offenders", CASES, ids=[c[0] for c in CASES])
 def test_finding_reproduces(case_id, md, correct, offenders):
     runner = DifferentialRunner(timeout_s=10)

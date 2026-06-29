@@ -43,7 +43,29 @@ CASES = [
 ]
 
 
+CRASH_CASE = '****"************+****'
+
+
+def show_crash() -> None:
+    print("=" * 72)
+    print("CRASH CLASS (highest severity): mistletoe raises on this input,")
+    print("while markdown-it-py, marko, and cmark all render it.")
+    print(f"input: {CRASH_CASE!r}")
+    print("  root cause: mistletoe/core_tokens.py process_emphasis -> closer.type[0]")
+    for name, fn in (
+        ("markdown-it-py", lambda s: mdit.render(s)),
+        ("mistletoe", mistletoe.markdown),
+        ("marko", lambda s: marko.Markdown()(s)),
+    ):
+        try:
+            fn(CRASH_CASE)
+            print(f"  {name:15} OK (no crash)")
+        except Exception as exc:  # noqa: BLE001
+            print(f"  {name:15} CRASH: {type(exc).__name__}: {exc}")
+
+
 def main() -> None:
+    show_crash()
     for md, expected, offender, desc in CASES:
         print("=" * 72)
         print(f"input:    {md!r}")
