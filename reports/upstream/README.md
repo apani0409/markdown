@@ -10,7 +10,7 @@ session that produced these had read-only, single-repo GitHub scope).
 |---|---|---|---|
 | [mistletoe-crash-emphasis.md](mistletoe-crash-emphasis.md) · **[PR](mistletoe-crash-PR.md)** ✅ | mistletoe | `IndexError` crash on emphasis runs — **verified 1-char fix, 335 tests pass** | high |
 | [marko-bang-html-block.md](marko-bang-html-block.md) · **[PR](marko-bang-html-block-PR.md)** ✅ | marko | `<!` (no ASCII letter) wrongly starts an HTML block — **verified fix, 1401 tests pass** | medium |
-| [marko-lone-list-marker-eof.md](marko-lone-list-marker-eof.md) | marko | lone list marker at EOF → paragraph | medium |
+| [marko-lone-list-marker-eof.md](marko-lone-list-marker-eof.md) · **[PR](marko-lone-list-marker-PR.md)** ✅ | marko | lone list marker at EOF → paragraph — **verified fix, 1408 tests pass** | medium |
 | [unclosed-fence-eof-newline.md](unclosed-fence-eof-newline.md) | markdown-it-py, marko | unclosed fence at EOF drops final newline | low/med |
 | [tab-partial-consume-blockquote.md](tab-partial-consume-blockquote.md) | markdown-it-py, mistletoe | partial tab after block-quote marker drops a space | medium |
 | [mistletoe-image-alt-softbreak.md](mistletoe-image-alt-softbreak.md) | mistletoe | soft break dropped in image `alt` | medium |

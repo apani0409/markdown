@@ -1,0 +1,76 @@
+From 394aae4cc689cedf1fe0d8e62cd2a3606da1a5ca Mon Sep 17 00:00:00 2001
+From: cmd <a@b.c>
+Date: Mon, 29 Jun 2026 21:45:31 +0000
+Subject: [PATCH 2/2] Fix: a lone list marker at end of input starts an empty
+ list item
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The List/ListItem start patterns required the marker to be followed by a
+whitespace char ([ \t\n\r\f]), so a marker that is the last character of the
+input (no trailing newline) — e.g. '*', '-', '1.' — was parsed as a paragraph
+instead of an empty list item. CommonMark treats a line ending or end-of-input
+identically, so '*' and '*\n' must parse the same. Allow end-of-input via
+'(?:[ \t\n\r\f]|$)'. Adds tests.
+---
+ marko/block.py      |  4 ++--
+ tests/test_basic.py | 20 ++++++++++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/marko/block.py b/marko/block.py
+index 47269ab..a501756 100644
+--- a/marko/block.py
++++ b/marko/block.py
+@@ -452,7 +452,7 @@ class List(BlockElement):
+ 
+     priority = 6
+     _prefix = ""
+-    pattern = re.compile(r" {,3}(\d{1,9}[.)]|[*\-+])[ \t\n\r\f]")
++    pattern = re.compile(r" {,3}(\d{1,9}[.)]|[*\-+])(?:[ \t\n\r\f]|$)")
+ 
+     class ParseInfo(NamedTuple):
+         bullet: str
+@@ -519,7 +519,7 @@ class ListItem(BlockElement):
+ 
+     virtual = True
+     _tight = False
+-    pattern = re.compile(r" {,3}(\d{1,9}[.)]|[*\-+])[ \t\n\r\f]")
++    pattern = re.compile(r" {,3}(\d{1,9}[.)]|[*\-+])(?:[ \t\n\r\f]|$)")
+ 
+     class ParseInfo(NamedTuple):
+         indent: int
+diff --git a/tests/test_basic.py b/tests/test_basic.py
+index 3a9c445..b6674e4 100644
+--- a/tests/test_basic.py
++++ b/tests/test_basic.py
+@@ -38,6 +38,26 @@ class TestBasic:
+         # declaration ending at the first ">".
+         assert marko.convert("<![CDATA[ x > y ]]>\n") == "<![CDATA[ x > y ]]>\n"
+ 
++    @pytest.mark.parametrize(
++        "text,expected",
++        [
++            # A list marker that is the last char of the input (no trailing
++            # newline) starts an empty list item, exactly like "*\n".
++            ("*", "<ul>\n<li></li>\n</ul>\n"),
++            ("-", "<ul>\n<li></li>\n</ul>\n"),
++            ("+", "<ul>\n<li></li>\n</ul>\n"),
++            ("1.", "<ol>\n<li></li>\n</ol>\n"),
++            ("2)", '<ol start="2">\n<li></li>\n</ol>\n'),
++            ("  *", "<ul>\n<li></li>\n</ul>\n"),
++        ],
++    )
++    def test_lone_list_marker_at_eof(self, text, expected):
++        assert normalize_html(marko.convert(text)) == normalize_html(expected)
++
++    def test_lone_marker_does_not_interrupt_paragraph(self):
++        # an empty list item cannot interrupt a paragraph
++        assert marko.convert("a\n*") == "<p>a\n*</p>\n"
++
+     def test_xml_renderer(self):
+         text = "[Overview](#overview)\n\n* * *"
+         markdown = marko.Markdown(renderer=XMLRenderer)
+-- 
+2.43.0
+

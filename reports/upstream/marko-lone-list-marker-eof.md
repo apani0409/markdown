@@ -32,6 +32,13 @@ edge cases (CHANGELOG v2.1.4: "Correct the parsing of LinkRefDef if it is the
 last line but doesn't end with a line break"; v2.2.3: "Fix an infinite loop
 caused by unnormalized line breaks").
 
+## Status
+
+Verified fix prepared: [`marko-lone-list-marker-PR.md`](marko-lone-list-marker-PR.md)
++ [`patches/marko/0002-...patch`](patches/marko/). Root cause: `List`/`ListItem`
+patterns required a whitespace char after the marker; allow end-of-input via
+`(?:[ \t\n\r\f]|$)`. Validated against marko 2.2.3: **1408 tests pass**.
+
 ## Duplicate check
 
 No matching issue found via web search of frostming/marko. Please confirm

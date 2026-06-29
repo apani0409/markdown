@@ -1,15 +1,18 @@
 # PR (ready to submit): marko — `<!` HTML-block fix
 
 **Repo:** frostming/marko · **Base:** v2.2.3 · **Patch:**
-[`patches/0001-Fix-without-an-ASCII-letter-must-not-start-an-HTML-b.patch`](patches/)
+[`patches/marko/0001-Fix-without-an-ASCII-letter-must-not-start-an-HTML-b.patch`](patches/marko/)
+
+> This is commit **1 of 2** in a small marko series (the other is the lone
+> list-marker fix, [`marko-lone-list-marker-PR.md`](marko-lone-list-marker-PR.md)).
+> Apply both in order, or open them as one PR with two commits.
 
 Apply with:
 
 ```bash
 git clone https://github.com/frostming/marko && cd marko
-git am < 0001-Fix-without-an-ASCII-letter-must-not-start-an-HTML-b.patch
-# or: git apply --index <patch>
-pytest tests/        # 1401 passed
+git am < patches/marko/0001-Fix-without-an-ASCII-letter-must-not-start-an-HTML-b.patch
+pytest tests/        # 1401 passed (1408 with both commits)
 ```
 
 ## Suggested PR title

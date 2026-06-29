@@ -1,13 +1,13 @@
 # PR (ready to submit): mistletoe — `IndexError` in `process_emphasis`
 
 **Repo:** miyuchina/mistletoe · **Base:** v1.5.1 · **Patch:**
-[`patches/0001-Fix-IndexError-in-process_emphasis-on-certain-emphas.patch`](patches/)
+[`patches/mistletoe/0001-Fix-IndexError-in-process_emphasis-on-certain-emphas.patch`](patches/mistletoe/)
 
 Apply with:
 
 ```bash
 git clone https://github.com/miyuchina/mistletoe && cd mistletoe
-git am < 0001-Fix-IndexError-in-process_emphasis-on-certain-emphas.patch
+git am < patches/mistletoe/0001-Fix-IndexError-in-process_emphasis-on-certain-emphas.patch
 pip install parameterized pygments && pytest test/   # 335 passed, 1 skipped
 ```
 
