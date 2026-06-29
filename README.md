@@ -18,8 +18,27 @@ Built in strict milestone order (see [`docs/analysis.md`](docs/analysis.md)):
 - **M1 — Harness + compliance scorecard** — ✅ **done.** Full `spec.txt` runs
   across all SUTs + the cmark reference with **zero normalization false
   positives** (reference fidelity 652/652). Scorecard below.
-- **M2 — Differential fuzzing** — next (M1's criterion is met).
-- **M3 — Upstream contribution** — pending.
+- **M2 — Differential fuzzing** — ✅ **done.** ~1 200 divergences over ~4 000
+  inputs, minimized and adversarially triaged into genuine bugs (see
+  [`reports/findings-m2.md`](reports/findings-m2.md)). Atheris also surfaced a
+  **crash** in mistletoe.
+- **M3 — Upstream contribution** — ✅ **drafts ready.** Ready-to-file issue
+  drafts + CommonMark spec-test proposals in
+  [`reports/upstream/`](reports/upstream/) (filing left to a human; see below).
+
+### Findings highlights
+
+- **mistletoe crash** (`IndexError`) on `****"************+****` — a parser of
+  untrusted input must never crash (spec §3). Root cause located in
+  `core_tokens.process_emphasis`.
+- **marko**: lone list marker at EOF (`*` → `<p>*</p>`), unterminated-LRD-title
+  discards the definition, block-quote indented-code blank-line handling.
+- **markdown-it-py**: lazy continuation after a link reference definition inside
+  a block quote; (with marko) unclosed-fence-at-EOF drops the final newline.
+- **mistletoe**: soft line break dropped inside image `alt`; bare `)` parsed as a
+  list marker; (with marko) trailing tab-bearing line leaks into indented code.
+- Two genuinely **under-specified** cases proposed as CommonMark spec tests.
+- By-design URL sanitization (`javascript:`) correctly excluded, not filed.
 
 ## Parsers under test
 

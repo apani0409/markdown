@@ -195,9 +195,30 @@ encoding of some URL characters where the spec under-specifies.
 triaged (not version-skew, not normalization), minimized, with the likely-wrong
 implementation identified — in fact several, across two 0.31.2-targeting parsers.
 
+### 7.1 Crash class (Atheris) and adversarial verification
+
+The in-process differential campaign found **0 crashes**, but the **Atheris**
+coverage-guided target surfaced a genuine **mistletoe crash** after ~262 k
+executions: `****"************+****` → `IndexError` in
+`core_tokens.process_emphasis` (`closer.type[0]` on an empty `type`); minimized
+with ddmin to a 1-minimal 22-char input. markdown-it-py, marko, and cmark all
+render it. This is the campaign's highest-severity finding and vindicates running
+both generation sources (spec §8). (An earlier Atheris run also caught a decode
+bug in our *own* target — now fixed and tested.)
+
+All candidate divergences were put through an **adversarial verification** pass
+(one agent per case, reasoning from the spec text, cmark as a strong-but-not-
+absolute tiebreaker). The human gate then overrode one agent verdict: for
+`[r]:/\n*` the agent called cmark buggy, but the spec appendix supports cmark's
+paragraph-buffering model, so we classify it **spec-ambiguous**, not a cmark bug
+(§5 in action: the reference can be on a debatable side). Full triaged results in
+`reports/findings-m2.md`; upstream drafts in `reports/upstream/`.
+
 ## 8. Milestone status
 
 - **M1 — harness + scorecard:** ✅ done (criterion met, scorecard shipped).
-- **M2 — differential fuzzing:** ✅ done (genuine minimized findings, triaged).
-- **M3 — upstream contribution:** in progress (preparing upstream issue drafts +
-  minimal test cases; filing requires repo write access / maintainer contact).
+- **M2 — differential fuzzing:** ✅ done (genuine minimized findings + a crash,
+  adversarially triaged).
+- **M3 — upstream contribution:** ✅ drafts ready (issue drafts + spec-test
+  proposals in `reports/upstream/`; filing requires repo write access /
+  maintainer contact, left to a human).
