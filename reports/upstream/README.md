@@ -14,7 +14,7 @@ session that produced these had read-only, single-repo GitHub scope).
 | [unclosed-fence-eof-newline.md](unclosed-fence-eof-newline.md) | markdown-it-py, marko | unclosed fence at EOF drops final newline | low/med |
 | [tab-partial-consume-blockquote.md](tab-partial-consume-blockquote.md) | markdown-it-py, mistletoe | partial tab after block-quote marker drops a space | medium |
 | [mistletoe-image-alt-softbreak.md](mistletoe-image-alt-softbreak.md) | mistletoe | soft break dropped in image `alt` | medium |
-| [mistletoe-list-marker-overrecognition.md](mistletoe-list-marker-overrecognition.md) | mistletoe | `.`/`)` wrongly parsed as an empty list | medium |
+| [mistletoe-list-marker-overrecognition.md](mistletoe-list-marker-overrecognition.md) · **[PR](mistletoe-list-marker-PR.md)** ✅ | mistletoe | `.`/`)` wrongly parsed as an empty list — **verified fix, 336 tests pass** | medium |
 | [mistletoe-setext-in-blockquote.md](mistletoe-setext-in-blockquote.md) | mistletoe | setext heading missed inside a block quote | medium |
 | [mistletoe-autolink-whitespace.md](mistletoe-autolink-whitespace.md) | mistletoe | autolink accepts whitespace (tab) | medium |
 | [mistletoe-backslash-hardbreak-cr.md](mistletoe-backslash-hardbreak-cr.md) | mistletoe | backslash hard break missed before CR | low |
