@@ -27,15 +27,25 @@ Built in strict milestone order (see [`docs/analysis.md`](docs/analysis.md)):
   inputs, minimized and adversarially triaged into genuine bugs (see
   [`reports/findings-m2.md`](reports/findings-m2.md)). Atheris also surfaced a
   **crash** in mistletoe.
-- **M3 — Upstream contribution** — ✅ **drafts ready.** Ready-to-file issue
-  drafts + CommonMark spec-test proposals in
-  [`reports/upstream/`](reports/upstream/) (filing left to a human; see below).
+- **M3 — Upstream contribution** — ✅ **two verified fix PRs + 13 more drafts.**
+  Ready-to-submit, root-cause patches (validated against each project's own test
+  suite) plus issue drafts and CommonMark spec-test proposals in
+  [`reports/upstream/`](reports/upstream/) (the actual submission is left to a
+  human — this session's GitHub scope is read-only on one repo).
 
-### Findings highlights
+### Verified fixes (root-cause patches, upstream tests pass)
 
-- **mistletoe crash** (`IndexError`) on `****"************+****` — a parser of
-  untrusted input must never crash (spec §3). Root cause located in
-  `core_tokens.process_emphasis`.
+- **mistletoe** — `IndexError` crash in `process_emphasis` on a class of emphasis
+  runs (minimal `**"****_*`; 100+ variants). One-char fix
+  (`Delimiter.remove(left=False)` used `type[:n]` not `type[:-n]`); **335 tests
+  pass**. [PR](reports/upstream/mistletoe-crash-PR.md) ·
+  [patch](reports/upstream/patches/).
+- **marko** — `<!` without an ASCII letter wrongly started an HTML block (also
+  fixed a dead CDATA branch). **1401 tests pass**.
+  [PR](reports/upstream/marko-bang-html-block-PR.md) ·
+  [patch](reports/upstream/patches/).
+
+### Other findings highlights
 - **marko**: lone list marker at EOF (`*` → `<p>*</p>`), unterminated-LRD-title
   discards the definition, block-quote indented-code blank-line handling.
 - **markdown-it-py**: lazy continuation after a link reference definition inside
