@@ -53,5 +53,15 @@ the *left* part (`type[:-n]`), but the code kept the *first* `n` characters
 `type`/`number` stay in sync, plus an integration test on the minimal crashers.
 Full suite: **335 passed, 1 skipped**, no regressions (incl. CommonMark spec).
 
+**Scope (honest note).** This patch fixes the **crash** (the critical issue) and
+passes the full suite. It does *not* claim to make emphasis parsing on these
+contrived runs match the reference: with the crash gone, e.g. `**"****_*` now
+renders as `<strong>"</strong>*<em>_</em>`, whereas cmark and markdown-it produce
+`**&quot;***<em>_</em>`. That residual emphasis divergence is a separate,
+lower-severity correctness matter (no spec example covers it; all 335 tests pass)
+— happy to open a follow-up issue if you'd like, but it's out of scope for this
+crash fix. A 600 000-input structure-aware re-fuzz of the patched build found
+**no remaining crashes**.
+
 **Found by** Atheris coverage-guided fuzzing + delta-debugging in a differential
 harness across the maintained Python CommonMark parsers. Glad to tweak as needed.

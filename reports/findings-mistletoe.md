@@ -42,3 +42,22 @@ These are in addition to the mistletoe findings in
 bare-`)` cases share a root: over-eager list-marker recognition.
 
 Reproduce the collection with `cm-difftest fuzz --require-offenders mistletoe`.
+
+## After the crash fix (re-fuzz + a residual emphasis divergence)
+
+With the [crash fix](upstream/mistletoe-crash-PR.md) applied, a **600 000-input**
+structure-aware re-fuzz of the patched build found **0 new crashes** — the fix
+closes the class and nothing else surfaced.
+
+The fix stops the crash but does not by itself make emphasis on the ex-crasher
+class match the reference. On `**<sep>****<sep>*` inputs the patched mistletoe and
+the reference still differ (a separate, lower-severity correctness issue):
+
+```
+**"****_*   mistletoe(fixed) -> <p><strong>"</strong>*<em>_</em></p>
+            cmark + markdown-it -> <p>**&quot;***<em>_</em></p>
+```
+
+85/100 ex-crashers diverge this way. cmark and markdown-it agree, so mistletoe is
+the outlier — noted in the PR as out of scope for the crash fix.
+
