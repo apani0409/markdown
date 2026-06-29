@@ -25,11 +25,19 @@ def _consume(data: bytes) -> str:
 
 
 def make_test_one_input():
-    from cm_difftest.adapters import sut_adapters
+    import os
+
+    from cm_difftest.adapters import get_adapter, sut_adapters
     from cm_difftest.runner.guard import guarded_render
     from cm_difftest.runner.result import Status
 
-    adapters = sut_adapters()
+    # Restrict to specific parsers via CM_DIFFTEST_FUZZ_PARSERS (comma-separated)
+    # so a known crash in one parser doesn't halt a hunt in the others.
+    selected = os.environ.get("CM_DIFFTEST_FUZZ_PARSERS")
+    if selected:
+        adapters = [get_adapter(n.strip()) for n in selected.split(",") if n.strip()]
+    else:
+        adapters = sut_adapters()
 
     def test_one_input(data: bytes) -> None:
         text = _consume(data)
