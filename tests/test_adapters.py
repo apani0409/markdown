@@ -5,7 +5,6 @@ from cm_difftest.adapters import (
     Adapter,
     AdapterError,
     Mode,
-    ModeNotSupported,
     default_adapters,
     get_adapter,
     reference_adapter,
@@ -70,9 +69,11 @@ def test_markdownit_safe_mode_escapes_raw_html():
 
 
 @pytest.mark.parametrize("name", ["mistletoe", "marko"])
-def test_safe_mode_deferred_for_unsanitised_parsers(name):
-    with pytest.raises(ModeNotSupported):
-        get_adapter(name).render("<b>x</b>", mode=Mode.SAFE)
+def test_single_mode_parsers_render_in_both_modes(name):
+    # marko and mistletoe have one rendering mode; SAFE must not raise (their
+    # security posture is recorded by the Phase 3 comparison, not by erroring).
+    out = get_adapter(name).render("<b>x</b>", mode=Mode.SAFE)
+    assert isinstance(out, str) and "x" in out
 
 
 def test_get_adapter_unknown_raises():

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import importlib.metadata as _meta
 
-from cm_difftest.adapters.base import Adapter, Mode, ModeNotSupported, Provenance
+from cm_difftest.adapters.base import Adapter, Mode, Provenance
 
 __all__ = ["MistletoeAdapter"]
 
@@ -16,9 +16,10 @@ __all__ = ["MistletoeAdapter"]
 class MistletoeAdapter(Adapter):
     """mistletoe with its default HTML renderer (passes the CommonMark spec).
 
-    mistletoe passes raw HTML through by default (RAW). It ships no built-in
-    sanitiser, so SAFE is deferred to Phase 3 (raising :class:`ModeNotSupported`
-    rather than silently comparing a non-equivalent mode).
+    mistletoe has a single rendering mode and **no built-in sanitiser** — it
+    passes raw HTML and dangerous URLs through unchanged. So RAW and SAFE render
+    identically here; the Phase 3 security comparison records this posture
+    (sanitises neither HTML nor URLs), which is itself a security note for users.
     """
 
     name = "mistletoe"
@@ -29,12 +30,9 @@ class MistletoeAdapter(Adapter):
         self._mistletoe = mistletoe
 
     def render(self, markdown: str, *, mode: Mode = Mode.RAW) -> str:
-        if mode is Mode.RAW:
-            # mistletoe.markdown() builds a fresh HTMLRenderer per call.
-            return self._mistletoe.markdown(markdown)
-        raise ModeNotSupported(
-            "mistletoe has no built-in safe mode; SAFE comparison is Phase 3"
-        )
+        # mistletoe.markdown() builds a fresh HTMLRenderer per call; it has no
+        # raw/safe switch, so the same output is used for both modes.
+        return self._mistletoe.markdown(markdown)
 
     def provenance(self) -> Provenance:
         return Provenance(
@@ -44,5 +42,5 @@ class MistletoeAdapter(Adapter):
             # says only "follows the CommonMark specification").
             target_spec_version="not declared",
             is_reference=False,
-            detail="default HTMLRenderer; spec version not pinned by project",
+            detail="default HTMLRenderer; no sanitiser (raw HTML + URLs pass through)",
         )

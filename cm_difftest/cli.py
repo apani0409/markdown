@@ -4,6 +4,7 @@
     cm-difftest provenance
     cm-difftest render "<markdown>" [--mode raw|safe]
     cm-difftest fuzz [--iterations N] [--seed S] [--out DIR] [...]
+    cm-difftest security [--iterations N] [--seed S]
 
 The ``scorecard`` command is the M1 deliverable: it runs the full spec.txt
 corpus across all SUTs + the cmark reference and writes a JSON + Markdown
@@ -125,6 +126,30 @@ def _cmd_fuzz(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_security(args: argparse.Namespace) -> int:
+    from cm_difftest.security import scan_campaign
+
+    print(f"Security scan: {args.iterations} vectors, seed {args.seed}...", file=sys.stderr)
+    res = scan_campaign(iterations=args.iterations, seed=args.seed)
+    print(f"scanned={res['scanned']}")
+    print("safe-mode sink emissions (posture; not necessarily a bug):")
+    for name, n in res["leak_counts"].items():
+        print(f"  {name:18} {n}")
+    print(f"GENUINE sanitizer bypasses: {len(res['bypasses'])}")
+    for b in res["bypasses"][:20]:
+        print(f"  {b['input_repr']}  {b['bypasses']}")
+    if res["bypasses"]:
+        # Bypasses are potential vulnerabilities: write them to git-ignored
+        # findings/ (private until responsibly disclosed, spec §6).
+        import json
+        os.makedirs("findings", exist_ok=True)
+        path = os.path.join("findings", f"security-bypasses-seed{args.seed}.json")
+        with open(path, "w", encoding="utf-8") as fh:
+            json.dump(res["bypasses"], fh, indent=2, ensure_ascii=False)
+        print(f"\nWrote PRIVATE findings to {path} (do not publish until disclosed).")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="cm-difftest", description=__doc__)
     parser.add_argument("--timeout", type=float, default=5.0,
@@ -155,6 +180,11 @@ def main(argv: list[str] | None = None) -> int:
     p_fuzz.add_argument("--require-offenders", default=None,
                         help="comma-separated parser names that must be among the offenders")
     p_fuzz.set_defaults(func=_cmd_fuzz)
+
+    p_sec = sub.add_parser("security", help="Phase 3 sanitization-bypass scan (spec §6)")
+    p_sec.add_argument("--iterations", type=int, default=4000)
+    p_sec.add_argument("--seed", type=int, default=0)
+    p_sec.set_defaults(func=_cmd_security)
 
     args = parser.parse_args(argv)
     return args.func(args)
