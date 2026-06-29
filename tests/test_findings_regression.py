@@ -25,8 +25,10 @@ CASES = [
     # marko: "<!" is treated as a raw HTML block instead of being escaped as text
     # ("<!" is not a valid HTML-block start condition).
     ("marko-bang-htmlblock", "<!", "<p>&lt;!</p>\n", {"marko"}),
-    # marko: over-percent-encodes the URL sub-delimiter ";" (-> %3B).
-    ("marko-url-semicolon", "[](;)", '<p><a href=";"></a></p>\n', {"marko"}),
+    # markdown-it-py + marko: an unclosed fenced code block at EOF whose last
+    # line lacks a newline drops the trailing newline from the content.
+    ("fence-eof-newline", "~~~\nt", "<pre><code>t\n</code></pre>\n",
+     {"markdown-it-py", "marko"}),
     # markdown-it-py: fails to recognize a code span in this context.
     ("markdownit-codespan", "[`t`>`", "<p>[<code>t</code>&gt;`</p>\n", {"markdown-it-py"}),
     # marko + mistletoe: treat "-<NBSP>--" as a thematic break; a non-breaking
