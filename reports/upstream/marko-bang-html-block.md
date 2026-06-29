@@ -46,6 +46,13 @@ if source.expect_re(r" {,3}<![A-Za-z]"):
 (This also tightens the precedence with the `<![CDATA[` type-5 check that
 follows it.)
 
+## Status
+
+A ready-to-submit patch + PR text is prepared:
+[`marko-bang-html-block-PR.md`](marko-bang-html-block-PR.md) and
+[`patches/`](patches/). Verified against marko 2.2.3: fix works, **1401 tests
+pass** (no regressions), and it also fixes the dead `<![CDATA[` branch.
+
 ## Duplicate check
 
 No matching issue found via web search of frostming/marko (note: an existing
