@@ -19,7 +19,9 @@ import sys
 
 
 def _consume(data: bytes) -> str:
-    return data.decode("utf-8", errors="surrogatepass")
+    # Markdown is Unicode text; map arbitrary fuzzer bytes to a valid str so the
+    # decode step never raises (that would be a harness bug, not a parser bug).
+    return data.decode("utf-8", errors="replace")
 
 
 def make_test_one_input():
