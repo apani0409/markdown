@@ -14,14 +14,14 @@
       "library_version": "1.5.1",
       "target_spec_version": "not declared",
       "is_reference": false,
-      "detail": "default HTMLRenderer; spec version not pinned by project"
+      "detail": "default HTMLRenderer; no sanitiser (raw HTML + URLs pass through)"
     },
     {
       "name": "marko",
       "library_version": "2.2.3",
       "target_spec_version": "0.31.2",
       "is_reference": false,
-      "detail": "default Markdown(); targets CommonMark 0.31.2"
+      "detail": "default Markdown(); URL-sanitising (#harmful-link), raw HTML passes through"
     },
     {
       "name": "cmark",

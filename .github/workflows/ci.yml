@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build tools (cmake for the cmark reference)
+        run: sudo apt-get update && sudo apt-get install -y cmake build-essential
+
+      - name: Install package + dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[reference,fuzz,dev]"
+
+      - name: Build cmark 0.31.2 reference
+        run: bash scripts/build_cmark.sh
+
+      - name: Run the harness test suite
+        run: pytest -q
+
+      - name: Regenerate the compliance scorecard (must meet the M1 criterion)
+        run: python -m cm_difftest.cli scorecard --out reports

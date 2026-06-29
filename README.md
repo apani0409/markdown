@@ -1,5 +1,10 @@
 # cm-difftest
 
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![CommonMark](https://img.shields.io/badge/CommonMark-0.31.2-informational)
+![tests](https://img.shields.io/badge/tests-pytest-green)
+![license](https://img.shields.io/badge/license-MIT-lightgrey)
+
 **A differential conformance + fuzzing harness for pure-Python CommonMark parsers.**
 
 cm-difftest compares how multiple actively-maintained, CommonMark-compliant
@@ -87,6 +92,18 @@ normalizer false-positive rate **0.0%**. mistletoe's 24 gaps are genuine
 disagreements (clustered in Raw HTML, Emphasis, and Link reference definitions),
 not formatting artifacts — the differential-fuzzing seed list for M2.
 
+## Reports
+
+- [`reports/scorecard.md`](reports/scorecard.md) — M1 compliance scorecard (per parser, per section).
+- [`reports/findings-m2.md`](reports/findings-m2.md) — triaged differential findings + the mistletoe crash.
+- [`reports/findings-verified.md`](reports/findings-verified.md) — full adversarially-verified catalog (36 cases).
+- [`reports/findings-mistletoe.md`](reports/findings-mistletoe.md) — mistletoe deep-dive (6 more bugs + flavor note).
+- [`reports/security-phase3.md`](reports/security-phase3.md) — sanitization/XSS posture (0 bypasses in 18k vectors).
+- [`reports/upstream/`](reports/upstream/) — 15 ready-to-file issue drafts + spec-test proposals + standalone reproducer.
+- [`docs/analysis.md`](docs/analysis.md) · [`docs/decisions.md`](docs/decisions.md) — analysis log + decision record.
+
+Re-run anything: `cm-difftest scorecard` · `cm-difftest fuzz` · `cm-difftest security` · `cm-difftest render "<md>"`.
+
 ## Layout
 
 ```
@@ -95,10 +112,15 @@ cm_difftest/
   corpus/      spec.txt (pinned 0.31.2) + loader
   adapters/    one render(markdown, *, mode) wrapper per parser + cmark reference
   runner/      differential runner with timeout / exception / memory guards
+  triage/      classifier + delta-debugging minimizer
+  fuzz/        structure-aware generator, campaign, Hypothesis + Atheris targets
   report/      compliance scorecard + findings writers (JSON + Markdown)
+  security.py  Phase 3 sanitization-bypass comparison (spec §6)
+  cli.py       scorecard / fuzz / security / render / provenance
 docs/          analysis log + decision log
-scripts/       build_cmark.sh, setup.sh
-tests/         tests for the harness itself
+scripts/       build_cmark.sh, setup.sh, bootstrap.sh
+reports/       scorecard + findings + security report + upstream drafts
+tests/         tests for the harness itself (≈140)
 findings/      git-ignored until responsibly disclosed (spec §6)
 ```
 
