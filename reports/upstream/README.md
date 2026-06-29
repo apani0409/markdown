@@ -9,6 +9,7 @@ session that produced these had read-only, single-repo GitHub scope).
 | Draft | Target(s) | Finding | Severity |
 |---|---|---|---|
 | [mistletoe-crash-emphasis.md](mistletoe-crash-emphasis.md) | mistletoe | `IndexError` crash on emphasis runs | high |
+| [marko-bang-html-block.md](marko-bang-html-block.md) | marko | `<!` (no ASCII letter) wrongly starts an HTML block — one-line fix | medium |
 | [marko-lone-list-marker-eof.md](marko-lone-list-marker-eof.md) | marko | lone list marker at EOF → paragraph | medium |
 | [unclosed-fence-eof-newline.md](unclosed-fence-eof-newline.md) | markdown-it-py, marko | unclosed fence at EOF drops final newline | low/med |
 | [commonmark-spec-test-proposals.md](commonmark-spec-test-proposals.md) | commonmark-spec | two under-specified LRD edge cases | spec |
