@@ -152,8 +152,52 @@ Failing example numbers: 12, 14, 27, 41, 91, 209, 210, 211, 343, 352, 354, 359,
 high-value seeds for M2 differential fuzzing and M3 triage (each must still pass
 the version-skew gate before any upstream filing).
 
-## 7. Milestone status
+## 7. M2 results — differential fuzzing
+
+The structure-aware fuzzer (`cm_difftest/fuzz`) seeds from the spec.txt examples
+and applies weighted, syntax-level mutations; the campaign runs each input
+through all parsers + cmark, keeps genuine divergences, dedupes by a structural
+signature, and minimizes each with ddmin.
+
+Signal (8 seeds, ~4 k inputs after early-stop at 40 findings/seed):
+**~1 220 divergences, 0 crashes, 201 distinct minimized findings.** Zero crashes
+is the expected outcome for hardened parsers (spec §8) — the value is the
+*differential* signal.
+
+A high-precision filter (cmark agrees with ≥1 other parser **and** an offender
+targets 0.31.2 **and** not a URL-scheme case) yields **103 strong candidates in
+24 root-cause clusters**. Confirmed genuine bugs (cmark + the spec + ≥1 other
+impl agree; offender targets 0.31.2 → no version-skew):
+
+| Offender | Minimal input | Bug | Spec area |
+|---|---|---|---|
+| marko | `*` / `-` / `1.` | lone list marker at EOF → paragraph, not empty list item | List items |
+| marko | `<!` | treated as a raw HTML block instead of escaped text | HTML blocks |
+| marko | `[](;)` | URL sub-delimiter `;` over-percent-encoded (`%3B`) | Links |
+| marko | `` [`]`]() `` | code span inside link label breaks link parsing | Links / code spans |
+| markdown-it-py | `` [`t`>` `` | code span not recognized in this context | Code spans |
+| marko + mistletoe | `-\xa0--` | `-`<NBSP>`--` parsed as thematic break (NBSP is not a valid space) | Thematic breaks |
+
+marko's lone-marker and `<!` bugs belong to a documented family (its CHANGELOG
+shows v2.1.4 "Correct the parsing of LinkRefDef if it is the last line but
+doesn't end with a line break" and v2.2.3 "Fix an infinite loop caused by
+unnormalized line breaks") — our cases are new instances not yet fixed in 2.2.3
+and not in its issue tracker. These are regression-pinned in
+`tests/test_findings_regression.py`.
+
+Candidates deliberately classified **not a clean bug** and excluded:
+URL-scheme handling (`javascript:`, `data:`) where markdown-it sanitizes by
+design and marko rewrites to `#harmful-link` (security comparison territory,
+Phase 3 — handled separately, not as correctness bugs); and exact percent-
+encoding of some URL characters where the spec under-specifies.
+
+**M2 done-criterion — met.** ≥1 genuine divergence beyond the static corpus,
+triaged (not version-skew, not normalization), minimized, with the likely-wrong
+implementation identified — in fact several, across two 0.31.2-targeting parsers.
+
+## 8. Milestone status
 
 - **M1 — harness + scorecard:** ✅ done (criterion met, scorecard shipped).
-- **M2 — differential fuzzing:** ready to start (gate cleared).
-- **M3 — upstream contribution:** not started.
+- **M2 — differential fuzzing:** ✅ done (genuine minimized findings, triaged).
+- **M3 — upstream contribution:** in progress (preparing upstream issue drafts +
+  minimal test cases; filing requires repo write access / maintainer contact).

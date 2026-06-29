@@ -45,6 +45,10 @@ pytest -q                      # run the harness's own test suite
 toolchain `cmake` + a C compiler are required). No pip binding ships exactly
 0.31.2, so the reference is compiled to match the pinned spec version (spec §5).
 
+`scripts/bootstrap.sh` is an idempotent setup (venv + deps + cmark, building only
+what's missing) — handy for a fresh checkout or to wire into a Claude Code
+`SessionStart` hook.
+
 ## Compliance scorecard
 
 Per-parser pass/fail against the official CommonMark **0.31.2** `spec.txt` (652
