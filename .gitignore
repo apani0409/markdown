@@ -25,6 +25,10 @@ htmlcov/
 # --- Local run outputs (the committed scorecard lives under reports/, see README) ---
 out/
 *.log
+# libFuzzer / Atheris crash artifacts (minimized repros live in reports/ instead)
+crash-*
+slow-unit-*
+oom-*
 
 # --- Editor / OS ---
 .DS_Store
