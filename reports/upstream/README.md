@@ -14,14 +14,23 @@ session that produced these had read-only, single-repo GitHub scope).
 | [unclosed-fence-eof-newline.md](unclosed-fence-eof-newline.md) | markdown-it-py, marko | unclosed fence at EOF drops final newline | low/med |
 | [tab-partial-consume-blockquote.md](tab-partial-consume-blockquote.md) | markdown-it-py, mistletoe | partial tab after block-quote marker drops a space | medium |
 | [mistletoe-image-alt-softbreak.md](mistletoe-image-alt-softbreak.md) | mistletoe | soft break dropped in image `alt` | medium |
+| [mistletoe-list-marker-overrecognition.md](mistletoe-list-marker-overrecognition.md) | mistletoe | `.`/`)` wrongly parsed as an empty list | medium |
+| [mistletoe-setext-in-blockquote.md](mistletoe-setext-in-blockquote.md) | mistletoe | setext heading missed inside a block quote | medium |
+| [mistletoe-autolink-whitespace.md](mistletoe-autolink-whitespace.md) | mistletoe | autolink accepts whitespace (tab) | medium |
+| [mistletoe-backslash-hardbreak-cr.md](mistletoe-backslash-hardbreak-cr.md) | mistletoe | backslash hard break missed before CR | low |
+| [markdown-it-py-lazy-continuation-after-lrd.md](markdown-it-py-lazy-continuation-after-lrd.md) | markdown-it-py, marko | lazy continuation after LRD in block quote | medium |
+| [marko-lrd-unterminated-title.md](marko-lrd-unterminated-title.md) | marko | unterminated title discards whole LRD | medium |
+| [marko-blockquote-indented-code-blank-line.md](marko-blockquote-indented-code-blank-line.md) | marko | interior blank line loses residual indent | low/med |
+| [shared-trailing-tab-indented-code.md](shared-trailing-tab-indented-code.md) | mistletoe, marko | trailing tab line leaks into indented code | low/med |
 | [commonmark-spec-test-proposals.md](commonmark-spec-test-proposals.md) | commonmark-spec | two under-specified LRD edge cases | spec |
 
-The full adversarially-verified catalog (25 confirmed bugs) is in
-[`../findings-verified.md`](../findings-verified.md). Findings with evidence but
-no standalone draft yet (ready to expand from the catalog): marko
-unterminated-LRD-title fallback and block-quote indented-code blank line;
-markdown-it-py lazy-continuation-after-LRD; mistletoe bare-`)` list marker; and
-several emphasis/code-span and list edge cases.
+These cover every distinct **root-cause class** in the adversarially-verified
+catalog ([`../findings-verified.md`](../findings-verified.md),
+[`../findings-mistletoe.md`](../findings-mistletoe.md)) — the catalog's 25
+confirmed bugs collapse to these classes (many entries are instances of the same
+cause, e.g. several lone-marker or emphasis-run variants). A couple of low-value
+cosmetic deviations (e.g. mistletoe rendering a literal `"` instead of `&quot;`)
+are left in the catalog rather than drafted.
 
 [`reproduce.py`](reproduce.py) demonstrates the key cases with only the
 third-party parsers installed (no cm-difftest dependency).
