@@ -19,6 +19,12 @@ generator); a standalone, dependency-free reproducer is in
 
 Legend: ✅ confirmed bug · ❓ spec-ambiguous (not filed as a bug) · ⛔ not a bug.
 
+> The sections below detail the highest-value findings. The **complete
+> adversarially-verified catalog** — 36 distinct minimized cases triaged into 25
+> confirmed bugs, 4 spec-ambiguous, 4 by-design, and 3 reference-implicated
+> (held as ambiguous, not filed against cmark) — is in
+> [`findings-verified.md`](findings-verified.md).
+
 ---
 
 ## ✅ Confirmed bugs
@@ -227,6 +233,11 @@ generation sources rather than relying on differential signal alone. (An earlier
 Atheris run also caught a bug in *our own* harness target — invalid-UTF-8 decode
 — now fixed and regression-tested.) Per §8, crash signal is a bonus; here it paid
 off with the single highest-severity finding of the campaign.
+
+A dedicated Atheris hunt restricted to **marko + markdown-it-py** (excluding the
+known mistletoe crash) ran **1 019 128 executions in 241 s with 0 crashes** —
+an honest negative result that isolates the crash class to mistletoe and matches
+the spec's expectation that hardened parsers seldom crash.
 
 ## Upstream status (M3)
 
