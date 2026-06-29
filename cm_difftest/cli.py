@@ -3,11 +3,12 @@
     cm-difftest scorecard [--out DIR] [--date YYYY-MM-DD]
     cm-difftest provenance
     cm-difftest render "<markdown>" [--mode raw|safe]
+    cm-difftest fuzz [--iterations N] [--seed S] [--out DIR] [...]
 
 The ``scorecard`` command is the M1 deliverable: it runs the full spec.txt
 corpus across all SUTs + the cmark reference and writes a JSON + Markdown
 compliance scorecard, printing the M1 done-criterion (normalizer false-positive
-rate).
+rate). The ``fuzz`` command is the M2 differential fuzzing campaign.
 """
 from __future__ import annotations
 
@@ -87,6 +88,43 @@ def _cmd_render(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_fuzz(args: argparse.Namespace) -> int:
+    from cm_difftest.fuzz import CampaignConfig, run_campaign
+    from cm_difftest.report import findings as fnd
+
+    require = None
+    if args.require_offenders:
+        require = frozenset(args.require_offenders.split(","))
+    config = CampaignConfig(
+        iterations=args.iterations,
+        seed=args.seed,
+        timeout_s=args.timeout,
+        max_findings=args.max_findings,
+        minimize_findings=not args.no_minimize,
+        drop_version_skew=args.drop_version_skew,
+        require_offenders=require,
+    )
+    print(f"Fuzzing: {args.iterations} iterations, seed {args.seed}...", file=sys.stderr)
+    result = run_campaign(config)
+    print(
+        f"ran={result.iterations} divergences={result.divergences_seen} "
+        f"crashes={result.crashes_seen} unique={result.unique_signatures} "
+        f"findings={len(result.findings)}"
+    )
+    # Findings go to the git-ignored findings/ dir (private until disclosed, §6).
+    os.makedirs(args.out, exist_ok=True)
+    jpath = os.path.join(args.out, f"findings-seed{args.seed}.json")
+    mpath = os.path.join(args.out, f"findings-seed{args.seed}.md")
+    fnd.write_json(result.findings, jpath)
+    fnd.write_markdown(result.findings, mpath)
+    print(f"Wrote {jpath}")
+    print(f"Wrote {mpath}")
+    for f in result.findings[:10]:
+        print(f"  {f.id} [{f.category}] offenders={','.join(f.offenders) or '?'} "
+              f"flags={','.join(f.flags) or '-'}  input={f.input_repr}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="cm-difftest", description=__doc__)
     parser.add_argument("--timeout", type=float, default=5.0,
@@ -105,6 +143,18 @@ def main(argv: list[str] | None = None) -> int:
     p_render.add_argument("markdown", help="markdown input")
     p_render.add_argument("--mode", choices=["raw", "safe"], default="raw")
     p_render.set_defaults(func=_cmd_render)
+
+    p_fuzz = sub.add_parser("fuzz", help="run the differential fuzzing campaign (M2)")
+    p_fuzz.add_argument("--iterations", type=int, default=5000)
+    p_fuzz.add_argument("--seed", type=int, default=0)
+    p_fuzz.add_argument("--out", default="findings", help="output dir (git-ignored)")
+    p_fuzz.add_argument("--max-findings", type=int, default=50)
+    p_fuzz.add_argument("--no-minimize", action="store_true")
+    p_fuzz.add_argument("--drop-version-skew", action="store_true",
+                        help="drop divergences flagged as possible version skew")
+    p_fuzz.add_argument("--require-offenders", default=None,
+                        help="comma-separated parser names that must be among the offenders")
+    p_fuzz.set_defaults(func=_cmd_fuzz)
 
     args = parser.parse_args(argv)
     return args.func(args)
