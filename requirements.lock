@@ -1,0 +1,25 @@
+# cm-difftest pinned dependency lockfile.
+# Python 3.11+. Regenerate with: pip freeze (after a clean install).
+#
+# Provenance recorded for the compliance reports (spec §5, §11):
+#   - target CommonMark spec version: 0.31.2
+#   - cmark reference: built from source at tag 0.31.2 (see scripts/build_cmark.sh)
+#
+# --- Systems under test (SUT) ---
+markdown-it-py==4.2.0      # targets CommonMark 0.31.2
+mistletoe==1.5.1           # target spec version recorded at runtime (see adapters)
+marko==2.2.3               # targets CommonMark 0.31.2 (explicit)
+
+# --- Reference oracle bindings (secondary / fallback; primary is built cmark 0.31.2) ---
+paka.cmark==2.3.0          # bundles cmark 0.30.2  (version-skew caveat vs 0.31.2)
+cmarkgfm==2025.10.22       # bundles cmark-gfm 0.29.0.gfm.2 (furthest; plain mode only)
+
+# --- Fuzzing (Milestone 2) ---
+hypothesis==6.155.7
+atheris==3.0.0
+
+# --- Transitive (recorded for reproducibility) ---
+mdurl==0.1.2
+
+# --- Test tooling ---
+pytest==9.1.1

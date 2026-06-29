@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cm-difftest"
+version = "0.1.0"
+description = "Differential conformance + fuzzing harness for pure-Python CommonMark parsers"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "cm-difftest contributors" }]
+keywords = ["commonmark", "markdown", "fuzzing", "differential-testing", "conformance"]
+
+# Pinned in requirements.lock; ranges here only document intent.
+dependencies = [
+    "markdown-it-py==4.2.0",
+    "mistletoe==1.5.1",
+    "marko==2.2.3",
+]
+
+[project.optional-dependencies]
+# cmark reference is built from source (see scripts/build_cmark.sh); paka.cmark
+# is an in-process fallback oracle (bundles cmark 0.30.2 — version-skew caveat).
+reference = ["paka.cmark==2.3.0", "cmarkgfm==2025.10.22"]
+fuzz = ["hypothesis==6.155.7", "atheris==3.0.0"]
+dev = ["pytest==9.1.1"]
+
+[project.scripts]
+cm-difftest = "cm_difftest.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["cm_difftest*"]
+
+[tool.setuptools.package-data]
+"cm_difftest.corpus" = ["*.txt"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+# The normalizer ships the official doctests; they are exercised from
+# tests/test_normalize.py via doctest.testmod rather than --doctest-modules,
+# so collection never imports the optional parser/fuzz dependencies.

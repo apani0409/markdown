@@ -1,0 +1,32 @@
+# --- Security / privacy: never commit raw findings until disclosed (spec §6, §11) ---
+findings/
+*.findings.json
+
+# --- Vendored / built C reference (rebuilt via scripts/build_cmark.sh) ---
+vendor/
+
+# --- Python ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.hypothesis/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# --- Local run outputs (the committed scorecard lives under reports/, see README) ---
+out/
+*.log
+
+# --- Editor / OS ---
+.DS_Store
+.idea/
+.vscode/
