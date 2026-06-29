@@ -61,3 +61,12 @@ the reference still differ (a separate, lower-severity correctness issue):
 85/100 ex-crashers diverge this way. cmark and markdown-it agree, so mistletoe is
 the outlier — noted in the PR as out of scope for the crash fix.
 
+**Investigated, intentionally not patched.** Unlike the crash (a clear typo:
+`type[:n]` vs `type[:-n]`), this residual is a *deep* divergence in mistletoe's
+emphasis algorithm (delimiter pairing / rule-of-3 / flanking) — no obvious
+one-line cause. mistletoe pairs the leading `**` with part of the `****` run to
+form `<strong>`, where cmark leaves `**<sep>` literal. A correct fix would mean
+reworking the emphasis matcher, with real regression risk to the 336 passing
+tests (incl. CommonMark spec conformance), for a contrived input class. The
+responsible call is to document it (here) rather than ship a fragile fix.
+

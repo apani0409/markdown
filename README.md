@@ -33,17 +33,25 @@ Built in strict milestone order (see [`docs/analysis.md`](docs/analysis.md)):
   [`reports/upstream/`](reports/upstream/) (the actual submission is left to a
   human — this session's GitHub scope is read-only on one repo).
 
-### Verified fixes (root-cause patches, upstream tests pass)
+### Verified fixes (root-cause patches, each project's own suite passes)
 
-- **mistletoe** — `IndexError` crash in `process_emphasis` on a class of emphasis
-  runs (minimal `**"****_*`; 100+ variants). One-char fix
-  (`Delimiter.remove(left=False)` used `type[:n]` not `type[:-n]`); **335 tests
-  pass**. [PR](reports/upstream/mistletoe-crash-PR.md) ·
-  [patch](reports/upstream/patches/).
-- **marko** — `<!` without an ASCII letter wrongly started an HTML block (also
-  fixed a dead CDATA branch). **1401 tests pass**.
-  [PR](reports/upstream/marko-bang-html-block-PR.md) ·
-  [patch](reports/upstream/patches/).
+Four ready-to-submit fixes ([`reports/upstream/patches/`](reports/upstream/patches/)),
+each validated against the target project's test suite:
+
+- **mistletoe** — `IndexError` crash in `process_emphasis` (class of emphasis
+  runs; minimal `**"****_*`, 100+ variants). 1-char fix
+  (`Delimiter.remove(left=False)`: `type[:n]`→`type[:-n]`). **335 tests pass.**
+  [PR](reports/upstream/mistletoe-crash-PR.md)
+- **mistletoe** — bare `.`/`)` parsed as an ordered list (`\d{0,9}`→`\d{1,9}`).
+  **336 tests pass.** [PR](reports/upstream/mistletoe-list-marker-PR.md)
+- **marko** — `<!` without an ASCII letter started an HTML block (+ dead CDATA
+  branch). **1401 tests pass.** [PR](reports/upstream/marko-bang-html-block-PR.md)
+- **marko** — lone list marker at EOF → paragraph (allow end-of-input in the
+  marker pattern). **1408 tests pass.** [PR](reports/upstream/marko-lone-list-marker-PR.md)
+
+Crash-fuzzing summary: marko + markdown-it survived ~1.5 M inputs with **0
+crashes**; mistletoe's one crash class is fixed (600 k re-fuzz of the patched
+build: 0 new). Security: **0 sanitization bypasses** in 18 k vectors.
 
 ### Other findings highlights
 - **marko**: lone list marker at EOF (`*` → `<p>*</p>`), unterminated-LRD-title
