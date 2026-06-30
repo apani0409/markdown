@@ -13,7 +13,7 @@ session that produced these had read-only, single-repo GitHub scope).
 | [marko-lone-list-marker-eof.md](marko-lone-list-marker-eof.md) · **[PR](marko-lone-list-marker-PR.md)** ✅ | marko | lone list marker at EOF → paragraph — **verified fix, 1408 tests pass** | medium |
 | [unclosed-fence-eof-newline.md](unclosed-fence-eof-newline.md) | markdown-it-py, marko | unclosed fence at EOF drops final newline | low/med |
 | [tab-partial-consume-blockquote.md](tab-partial-consume-blockquote.md) | markdown-it-py, mistletoe | partial tab after block-quote marker drops a space | medium |
-| [mistletoe-image-alt-softbreak.md](mistletoe-image-alt-softbreak.md) | mistletoe | soft break dropped in image `alt` | medium |
+| [mistletoe-image-alt-softbreak.md](mistletoe-image-alt-softbreak.md) · **[PR](mistletoe-image-alt-softbreak-PR.md)** ✅ | mistletoe | line break dropped/leaks literal chars in image `alt` — **verified fix, 348 tests pass** | medium |
 | [mistletoe-list-marker-overrecognition.md](mistletoe-list-marker-overrecognition.md) · **[PR](mistletoe-list-marker-PR.md)** ✅ | mistletoe | `.`/`)` wrongly parsed as an empty list — **verified fix, 336 tests pass** | medium |
 | [mistletoe-setext-in-blockquote.md](mistletoe-setext-in-blockquote.md) | mistletoe | setext heading missed inside a block quote | medium |
 | [mistletoe-autolink-whitespace.md](mistletoe-autolink-whitespace.md) · **[PR](mistletoe-autolink-whitespace-PR.md)** ✅ | mistletoe | autolink accepts control chars (tab/newline) in URI — **verified fix, 343 tests pass** | medium |

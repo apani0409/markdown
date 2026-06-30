@@ -26,6 +26,13 @@ option — dropping it is non-conformant. cmark 0.31.2 renders it as a space
 mistletoe renders soft breaks correctly in normal paragraph text — the defect is
 isolated to its plain-text/`alt` rendering path.
 
+> **Status: verified fix** — [`mistletoe-image-alt-softbreak-PR.md`](mistletoe-image-alt-softbreak-PR.md)
+> / [`patches/mistletoe/0007-*.patch`](patches/mistletoe/). `render_to_plain`
+> returned `LineBreak.content` (the break's leading spaces/backslash), dropping
+> soft breaks and leaking `  `/`\` for hard breaks. Render a `LineBreak` as a
+> single space, matching cmark on all break types. Isolated diff over spec.txt +
+> 12k image inputs touches only `<img>` alt text; 348 tests pass.
+
 ## Duplicate check
 
 No matching issue found via web search of miyuchina/mistletoe. Please confirm
