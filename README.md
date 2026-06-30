@@ -27,7 +27,7 @@ Built in strict milestone order (see [`docs/analysis.md`](docs/analysis.md)):
   inputs, minimized and adversarially triaged into genuine bugs (see
   [`reports/findings-m2.md`](reports/findings-m2.md)). Atheris also surfaced a
   **crash** in mistletoe.
-- **M3 — Upstream contribution** — ✅ **two verified fix PRs + 13 more drafts.**
+- **M3 — Upstream contribution** — ✅ **five verified fix patches + more drafts.**
   Ready-to-submit, root-cause patches (validated against each project's own test
   suite) plus issue drafts and CommonMark spec-test proposals in
   [`reports/upstream/`](reports/upstream/) (the actual submission is left to a
@@ -35,7 +35,7 @@ Built in strict milestone order (see [`docs/analysis.md`](docs/analysis.md)):
 
 ### Verified fixes (root-cause patches, each project's own suite passes)
 
-Four ready-to-submit fixes ([`reports/upstream/patches/`](reports/upstream/patches/)),
+Five ready-to-submit fixes ([`reports/upstream/patches/`](reports/upstream/patches/)),
 each validated against the target project's test suite:
 
 - **mistletoe** — `IndexError` crash in `process_emphasis` (class of emphasis
@@ -44,6 +44,11 @@ each validated against the target project's test suite:
   [PR](reports/upstream/mistletoe-crash-PR.md)
 - **mistletoe** — bare `.`/`)` parsed as an ordered list (`\d{0,9}`→`\d{1,9}`).
   **336 tests pass.** [PR](reports/upstream/mistletoe-list-marker-PR.md)
+- **mistletoe** — **O(n²) DoS** on closing-bracket runs (`]`×n, `[a]`×n): the
+  inline parser re-scanned the whole string for a code span on *every* `]`.
+  Guard the re-scan → **linear** (exp 1.95→0.90), behaviour-preserving (0 diffs
+  on spec.txt + 12k fuzz inputs). **338 tests pass.**
+  [PR](reports/upstream/mistletoe-quadratic-brackets-PR.md)
 - **marko** — `<!` without an ASCII letter started an HTML block (+ dead CDATA
   branch). **1401 tests pass.** [PR](reports/upstream/marko-bang-html-block-PR.md)
 - **marko** — lone list marker at EOF → paragraph (allow end-of-input in the

@@ -1,0 +1,97 @@
+From c9228b498363a7071dd7ccf85185108074af583c Mon Sep 17 00:00:00 2001
+From: cmd <a@b.c>
+Date: Tue, 30 Jun 2026 07:49:27 +0000
+Subject: [PATCH] Fix: O(n^2) blowup on closing-bracket runs in
+ find_core_tokens
+
+find_core_tokens cached the next code-span match (code_pattern.search) but
+unconditionally re-ran that full-string search after *every* ']'. On input
+with many closing brackets and no code spans (e.g. ']'*n, '[a]'*n) this is one
+O(n) regex scan per ']' -> O(n^2): a few KB of brackets pins the CPU for
+seconds (an untrusted-input amplification / DoS vector). cmark and
+markdown-it-py are linear on the same input.
+
+The re-scan only matters when find_link_image advanced the cursor past the
+cached match. If the cached match is None no later start can match either, and
+if it still starts at/after the cursor it remains the correct next match, so the
+search can be skipped in both cases. This is behaviour-preserving (verified: 0
+output diffs vs the original across the full spec.txt corpus and 12k
+bracket/backtick-heavy fuzz inputs) and makes ']'*n and '[a]'*n linear.
+
+Adds a regression test that asserts the number of code-span scans does not grow
+with input size (was 101 vs 1001 for n=100 vs n=1000).
+---
+ mistletoe/core_tokens.py |  9 ++++++++-
+ test/test_core_tokens.py | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 1 deletion(-)
+
+diff --git a/mistletoe/core_tokens.py b/mistletoe/core_tokens.py
+index 663778b..4a21dbd 100644
+--- a/mistletoe/core_tokens.py
++++ b/mistletoe/core_tokens.py
+@@ -67,7 +67,14 @@ def find_core_tokens(string, root):
+                 in_image = True
+             elif c == ']':
+                 i = find_link_image(string, i, delimiters, matches, root)
+-                code_match = code_pattern.search(string, i)
++                # Only re-scan for the next code span if the cached match is now
++                # stale (consumed by find_link_image advancing ``i``). If it is
++                # ``None`` no later start can match either, and if it still
++                # starts at/after ``i`` it remains the correct next match -- so
++                # skipping the search here is behaviour-preserving and turns an
++                # O(n^2) rescan-per-']' into O(n).
++                if code_match is not None and code_match.start() < i:
++                    code_match = code_pattern.search(string, i)
+             elif in_image:
+                 in_image = False
+         else:
+diff --git a/test/test_core_tokens.py b/test/test_core_tokens.py
+index 46eb7bc..73f2a2f 100644
+--- a/test/test_core_tokens.py
++++ b/test/test_core_tokens.py
+@@ -59,6 +59,42 @@ class TestCoreTokens(TestCase):
+         for text in ('**"****_*', '**+****+*', '**`****~*'):
+             mistletoe.markdown(text)  # must not raise
+ 
++    def test_closing_brackets_do_not_rescan_quadratically(self):
++        # A run of N ']' used to trigger one full-string code-span rescan per
++        # ']' (O(n^2): a few KB of brackets pinned the CPU for seconds). The
++        # cached code-span match is now reused when still valid, so the number
++        # of regex scans must not grow with the input size.
++        from unittest.mock import patch
++        import mistletoe
++        from mistletoe import core_tokens
++
++        class CountingPattern:
++            def __init__(self, real):
++                self.real, self.calls = real, 0
++
++            def search(self, *args, **kwargs):
++                self.calls += 1
++                return self.real.search(*args, **kwargs)
++
++        def scans_for(n):
++            proxy = CountingPattern(core_tokens.code_pattern)
++            with patch.object(core_tokens, 'code_pattern', proxy):
++                mistletoe.markdown(']' * n)
++            return proxy.calls
++
++        small, big = scans_for(100), scans_for(1000)
++        # 10x the input must not multiply the number of scans (was 101 vs 1001).
++        self.assertEqual(small, big)
++        self.assertLess(big, 10)
++
++    def test_code_span_after_brackets_still_parsed(self):
++        # The rescan-skipping optimization must not drop a code span that comes
++        # after bracket handling: the cached match is only reused while valid.
++        import mistletoe
++        bt = chr(96)
++        html = mistletoe.markdown('[x] ' + bt + 'code' + bt)
++        self.assertIn('<code>code</code>', html)
++
+     def test_follows(self):
+         string = '(foobar)'
+         self.assertTrue(follows(string, 6, ')'))
+-- 
+2.43.0
+

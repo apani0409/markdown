@@ -16,6 +16,13 @@ block-nesting depth instead of recursing unboundedly.
 
 ## 2. Quadratic time on linear input (amplification)
 
+> **Status: the closing-bracket family now has a verified fix** —
+> [`mistletoe-quadratic-brackets-PR.md`](mistletoe-quadratic-brackets-PR.md) /
+> [`patches/mistletoe/0003-*.patch`](patches/mistletoe/). `]`×n and `[a]`×n go
+> from exponent ≈1.95 to ≈0.90/1.00 (linear), behaviour-preserving (0 diffs on
+> spec.txt + 12k fuzz inputs), 338 tests pass. The *balanced* `[`×n`]`×n /
+> `[](`×n cases have a second, independent quadratic source and remain open.
+
 Minimal trigger — **a single repeated closing bracket**:
 
 ```python
