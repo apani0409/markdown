@@ -5,6 +5,7 @@
     cm-difftest render "<markdown>" [--mode raw|safe]
     cm-difftest fuzz [--iterations N] [--seed S] [--out DIR] [...]
     cm-difftest security [--iterations N] [--seed S]
+    cm-difftest perf [--budget S]
 
 The ``scorecard`` command is the M1 deliverable: it runs the full spec.txt
 corpus across all SUTs + the cmark reference and writes a JSON + Markdown
@@ -150,6 +151,26 @@ def _cmd_security(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_perf(args: argparse.Namespace) -> int:
+    from cm_difftest.perf import run_perf
+
+    print("Measuring algorithmic-complexity scaling per parser...", file=sys.stderr)
+    results = run_perf(budget=args.budget)
+    print(f"{'family':22}{'parser':16}{'exponent':>9}  status")
+    for o in results:
+        exp = f"{o.exponent:.2f}" if o.exponent is not None else "n/a"
+        flag = ""
+        if o.status in ("recursion", "timeout", "error"):
+            flag = f"  <== {o.status.upper()}"
+        elif o.exponent is not None and o.exponent > 1.5:
+            flag = "  <== SUPERLINEAR"
+        if flag:
+            print(f"{o.family:22}{o.adapter:16}{exp:>9}  {o.status}{flag}")
+    print("\n(only superlinear / recursion / timeout rows shown; cmark + "
+          "markdown-it-py are the robust baseline)")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="cm-difftest", description=__doc__)
     parser.add_argument("--timeout", type=float, default=5.0,
@@ -185,6 +206,10 @@ def main(argv: list[str] | None = None) -> int:
     p_sec.add_argument("--iterations", type=int, default=4000)
     p_sec.add_argument("--seed", type=int, default=0)
     p_sec.set_defaults(func=_cmd_security)
+
+    p_perf = sub.add_parser("perf", help="algorithmic-complexity / DoS scan (spec §3)")
+    p_perf.add_argument("--budget", type=float, default=8.0, help="per-input time budget (s)")
+    p_perf.set_defaults(func=_cmd_perf)
 
     args = parser.parse_args(argv)
     return args.func(args)
