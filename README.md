@@ -27,7 +27,7 @@ Built in strict milestone order (see [`docs/analysis.md`](docs/analysis.md)):
   inputs, minimized and adversarially triaged into genuine bugs (see
   [`reports/findings-m2.md`](reports/findings-m2.md)). Atheris also surfaced a
   **crash** in mistletoe.
-- **M3 — Upstream contribution** — ✅ **six verified fixes (eight patches) + more drafts.**
+- **M3 — Upstream contribution** — ✅ **seven verified fixes (nine patches) + more drafts.**
   Ready-to-submit, root-cause patches (validated against each project's own test
   suite) plus issue drafts and CommonMark spec-test proposals in
   [`reports/upstream/`](reports/upstream/) (the actual submission is left to a
@@ -35,7 +35,7 @@ Built in strict milestone order (see [`docs/analysis.md`](docs/analysis.md)):
 
 ### Verified fixes (root-cause patches, each project's own suite passes)
 
-Six ready-to-submit fixes ([`reports/upstream/patches/`](reports/upstream/patches/)),
+Seven ready-to-submit fixes ([`reports/upstream/patches/`](reports/upstream/patches/)),
 each validated against the target project's test suite:
 
 - **mistletoe** — `IndexError` crash in `process_emphasis` (class of emphasis
@@ -44,6 +44,9 @@ each validated against the target project's test suite:
   [PR](reports/upstream/mistletoe-crash-PR.md)
 - **mistletoe** — bare `.`/`)` parsed as an ordered list (`\d{0,9}`→`\d{1,9}`).
   **336 tests pass.** [PR](reports/upstream/mistletoe-list-marker-PR.md)
+- **mistletoe** — autolink URI accepted ASCII control chars (`<hs:⇥>` became a
+  link); tighten `[^ <>]`→`[^\x00-\x20<>]` to match cmark. **343 tests pass.**
+  [PR](reports/upstream/mistletoe-autolink-whitespace-PR.md)
 - **mistletoe** — **O(n²) DoS** on bracket runs (three independent causes): a
   full-string code-span rescan on every `]` (`]`×n, `[a]`×n); an O(n)
   reversed-copy + `list.remove` opener lookup (`[`×n`]`×n); and an uncapped
