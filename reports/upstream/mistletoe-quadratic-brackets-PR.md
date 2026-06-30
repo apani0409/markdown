@@ -1,13 +1,28 @@
-# PR (ready to submit): mistletoe — O(n²) blowup on closing-bracket runs
+# PR (ready to submit): mistletoe — O(n²) blowup on bracket runs
 
-**Repo:** miyuchina/mistletoe · **Base:** v1.5.1 · **Patch:**
-[`patches/mistletoe/0003-Fix-O-n-2-blowup-on-closing-bracket-runs-in-find_cor.patch`](patches/mistletoe/)
+**Repo:** miyuchina/mistletoe · **Base:** v1.5.1 · **Patches (two commits):**
+[`0003-…-closing-bracket-runs-in-find_core_tokens.patch`](patches/mistletoe/) +
+[`0004-…-balanced-bracket-runs-in-find_link_image.patch`](patches/mistletoe/)
 
 > Independent of the crash and list-marker fixes (touches only
 > `core_tokens.py` / `test_core_tokens.py`), so it can be filed as its own PR or
-> applied alongside. `git am` the patch.
+> applied alongside. `git am` both patches.
 
-## Suggested PR title
+Two independent O(n²) sources in mistletoe's inline parser conspire to make a
+few KB of brackets pin the CPU for seconds (an untrusted-input amplification /
+DoS vector). cmark and markdown-it-py are linear on all of these.
+
+| Input family | Before | After |
+|---|---:|---:|
+| `]`×n            | exp ≈1.95 (O(n²)) | exp ≈0.90 (linear) — commit 0003 |
+| `[a]`×n          | exp ≈1.94 (O(n²)) | exp ≈1.00 (linear) — commit 0003 |
+| `[`×n`]`×n       | exp ≈1.96 (O(n²)) | exp ≈0.99 (linear) — commit 0004 |
+
+---
+
+## Commit 0003 — closing-bracket rescan (`find_core_tokens`)
+
+### Suggested PR title
 
 > Fix: O(n²) blowup on closing-bracket runs in `find_core_tokens`
 
@@ -71,10 +86,87 @@ This is **behaviour-preserving**:
 not grow with input size (was 101 vs 1001 scans for n=100 vs n=1000; now
 constant).
 
-**Scope** — this fixes the closing-bracket family (`]`×n, `[a]`×n), which is the
-minimal and most severe form. The *balanced* `[`×n`]`×n and `[](`×n cases have a
-second, independent quadratic source (delimiter-list `remove`/`del` by value
-inside `find_link_image`/`process_emphasis`) and are left for a separate change.
+---
+
+## Commit 0004 — opener lookup/removal (`find_link_image`)
+
+### Suggested PR title
+
+> Fix: O(n²) blowup on balanced bracket runs in `find_link_image`
+
+### Suggested PR body
+
+**What** — After the closing-bracket fix, `[`×n`]`×n is still quadratic.
+
+```python
+import mistletoe, time
+for n in (1000, 2000, 4000, 8000):
+    s = "[" * n + "]" * n
+    t = time.perf_counter(); mistletoe.markdown(s)
+    print(2 * n, round(time.perf_counter() - t, 4))
+# before:  exponent ≈ 1.96 (O(n²));  after: exponent ≈ 0.99 (linear)
+```
+
+**Root cause** — for every `]`, `find_link_image` iterated a **reversed copy** of
+the delimiter list and removed the matched opener with `list.remove` (an O(n)
+**by-value** scan):
+
+```python
+def find_link_image(string, offset, delimiters, matches, root=None):
+    i = len(delimiters) - 1
+    for delimiter in delimiters[::-1]:        # O(n) copy, every ']'
+        if delimiter.type in ('[', '!['):
+            ...
+            delimiters.remove(delimiter)      # O(n) by-value scan
+            return offset
+        i -= 1
+```
+
+With `[`×n`]`×n the opener sits at the end of the list, so each close pays O(n)
+to copy + O(n) to scan-and-remove → **O(n²)**. (Profiling `'['*4000+']'*4000`:
+`list.remove` = 57% of runtime.)
+
+**Fix** — iterate by index from the end and delete the opener by index:
+
+```diff
+-    i = len(delimiters) - 1
+-    for delimiter in delimiters[::-1]:
++    for i in range(len(delimiters) - 1, -1, -1):
++        delimiter = delimiters[i]
+         if delimiter.type in ('[', '!['):
+             if not delimiter.active:
+-                delimiters.remove(delimiter)
++                del delimiters[i]
+                 return offset
+             ...
+-            delimiters.remove(delimiter)
++            del delimiters[i]
+             return offset
+-        i -= 1
+```
+
+`i` is exactly the index the old loop computed and already passed to
+`process_emphasis(string, i, …)` / `deactivate_delimiters(delimiters, i, '[')`,
+so the change is **behaviour-preserving**; deleting the end-of-list opener is
+O(1) → linear.
+
+**Verification** — **0 output diffs** vs unpatched v1.5.1 across spec.txt (652)
+and 12,150 bracket-heavy fuzz inputs; `[`×n`]`×n drops from exp ≈1.96 to ≈0.99.
+Full suite: **340 passed, 1 skipped**.
+
+**Tests** — added a min-of-3 timing-ratio regression test (4× the input must not
+multiply time by ~16×; original ≈14.7× vs fixed ≈3.3×) plus link/image bracket
+correctness tests covering the index-based removal paths.
+
+---
+
+## Remaining (not in this PR)
+
+`[](`×n is still quadratic from a **third, independent** source:
+`match_link_dest` scans to end-of-input counting never-closing `(` on every `]`.
+That one is a deeper change to link-destination scanning and is left for a
+separate investigation (documented in
+[`mistletoe-dos.md`](mistletoe-dos.md) / [`../performance.md`](../performance.md)).
 
 **Found by** differential algorithmic-complexity measurement vs the cmark
 reference.

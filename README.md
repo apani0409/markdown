@@ -44,11 +44,11 @@ each validated against the target project's test suite:
   [PR](reports/upstream/mistletoe-crash-PR.md)
 - **mistletoe** — bare `.`/`)` parsed as an ordered list (`\d{0,9}`→`\d{1,9}`).
   **336 tests pass.** [PR](reports/upstream/mistletoe-list-marker-PR.md)
-- **mistletoe** — **O(n²) DoS** on closing-bracket runs (`]`×n, `[a]`×n): the
-  inline parser re-scanned the whole string for a code span on *every* `]`.
-  Guard the re-scan → **linear** (exp 1.95→0.90), behaviour-preserving (0 diffs
-  on spec.txt + 12k fuzz inputs). **338 tests pass.**
-  [PR](reports/upstream/mistletoe-quadratic-brackets-PR.md)
+- **mistletoe** — **O(n²) DoS** on bracket runs (two independent causes): a
+  full-string code-span rescan on *every* `]` (`]`×n, `[a]`×n) and an O(n)
+  reversed-copy + `list.remove` opener lookup (`[`×n`]`×n). Both made **linear**
+  (exp ~1.95→0.9–1.0), behaviour-preserving (0 diffs on spec.txt + 12k fuzz).
+  **340 tests pass.** [PR](reports/upstream/mistletoe-quadratic-brackets-PR.md)
 - **marko** — `<!` without an ASCII letter started an HTML block (+ dead CDATA
   branch). **1401 tests pass.** [PR](reports/upstream/marko-bang-html-block-PR.md)
 - **marko** — lone list marker at EOF → paragraph (allow end-of-input in the

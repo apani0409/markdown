@@ -1,7 +1,7 @@
 From c9228b498363a7071dd7ccf85185108074af583c Mon Sep 17 00:00:00 2001
 From: cmd <a@b.c>
 Date: Tue, 30 Jun 2026 07:49:27 +0000
-Subject: [PATCH] Fix: O(n^2) blowup on closing-bracket runs in
+Subject: [PATCH 3/4] Fix: O(n^2) blowup on closing-bracket runs in
  find_core_tokens
 
 find_core_tokens cached the next code-span match (code_pattern.search) but
