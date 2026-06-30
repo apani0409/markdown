@@ -23,7 +23,8 @@ session that produced these had read-only, single-repo GitHub scope).
 | [marko-blockquote-indented-code-blank-line.md](marko-blockquote-indented-code-blank-line.md) | marko | interior blank line loses residual indent | low/med |
 | [shared-trailing-tab-indented-code.md](shared-trailing-tab-indented-code.md) | mistletoe, marko | trailing tab line leaks into indented code | low/med |
 | [marko-dos.md](marko-dos.md) · **[PR](marko-quadratic-paren-PR.md)** ✅ | marko | DoS: RecursionError (~258 B) + quadratic brackets/links — **`[](`×n quadratic fixed (now linear) + conformance, 1412 tests pass** | med–high |
-| [mistletoe-dos.md](mistletoe-dos.md) · **[PR](mistletoe-quadratic-brackets-PR.md)** ✅ | mistletoe | DoS: RecursionError (~514 B) + quadratic brackets/links — **`]`×n/`[a]`×n quadratic fixed (now linear), 338 tests pass** | med–high |
+| [mistletoe-dos.md](mistletoe-dos.md) · **[PR](mistletoe-quadratic-brackets-PR.md)** ✅ | mistletoe | DoS: RecursionError (~514 B) + quadratic brackets/links — **all 3 bracket quadratics fixed (linear), 342 tests pass** | med–high |
+| [emphasis-quadratic.md](emphasis-quadratic.md) | mistletoe, marko | DoS: O(n²) emphasis/delimiter resolution (`*_`×n, `[*`×n`*]`×n) — root-caused, needs linked-list refactor (not patched) | medium |
 | [commonmark-spec-test-proposals.md](commonmark-spec-test-proposals.md) | commonmark-spec | two under-specified LRD edge cases | spec |
 
 These cover every distinct **root-cause class** in the adversarially-verified
