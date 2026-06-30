@@ -39,6 +39,16 @@ def test_deep_blockquote_robust(name):
     assert status == "ok"
 
 
+def test_fuzz_amplifiers_runs_and_flags_only_offenders():
+    from cm_difftest.perf import fuzz_amplifiers
+
+    hits = fuzz_amplifiers(seed=0, n_fragments=40, reps=(500, 1000, 2000), budget=4.0)
+    assert isinstance(hits, list)
+    # the reference is never reported as an offender against itself
+    assert all(h["parser"] != "cmark" for h in hits)
+    assert all(set(h) >= {"parser", "fragment", "kind"} for h in hits)
+
+
 def test_families_are_linear_length():
     # every family's input length must be ~linear in n (fair complexity probe)
     for name, mk in FAMILIES.items():

@@ -16,8 +16,20 @@ block-nesting depth instead of recursing unboundedly.
 
 ## 2. Quadratic time on linear input (amplification)
 
+Minimal trigger — **a single repeated closing bracket**:
+
+```python
+import mistletoe, time
+s = "]" * 8000
+t = time.perf_counter(); mistletoe.markdown(s); print(time.perf_counter() - t)  # ~1.4 s
+```
+
+`]`×n is **~O(n²)** (exponent ≈ 1.98): the link/bracket resolver appears to
+rescan on every closing bracket. markdown-it-py, marko, and cmark are ≈linear.
+
 | Input family | Growth exponent | ~size to reach 1 s |
 |---|---:|---:|
+| `]`×n (minimal) | ~1.98 | ~10 KB |
 | `[`×n + `]`×n | ~1.95 | ~16 KB |
 | `[](`×n | ~1.98 (then timeout) | ~12 KB |
 | `[a]`×n | ~1.94 | ~12 KB |

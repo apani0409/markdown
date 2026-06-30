@@ -152,7 +152,21 @@ def _cmd_security(args: argparse.Namespace) -> int:
 
 
 def _cmd_perf(args: argparse.Namespace) -> int:
-    from cm_difftest.perf import run_perf
+    from cm_difftest.perf import fuzz_amplifiers, run_perf
+
+    if args.fuzz:
+        print("Perf-fuzzing for amplifier fragments...", file=sys.stderr)
+        hits = fuzz_amplifiers(seed=args.seed, budget=args.budget)
+        seen = set()
+        for h in sorted(hits, key=lambda h: (h["parser"], h["kind"])):
+            key = (h["parser"], h["kind"], h["fragment"].strip())
+            if key in seen:
+                continue
+            seen.add(key)
+            print(f"  {h['parser']:14} frag={h['fragment']!r:14} {h['kind']}"
+                  + (f" exp={h['exponent']}" if h["exponent"] else ""))
+        print(f"\n{len(hits)} amplifier hits (parser superlinear/recursion where cmark is linear)")
+        return 0
 
     print("Measuring algorithmic-complexity scaling per parser...", file=sys.stderr)
     results = run_perf(budget=args.budget)
@@ -209,6 +223,8 @@ def main(argv: list[str] | None = None) -> int:
 
     p_perf = sub.add_parser("perf", help="algorithmic-complexity / DoS scan (spec §3)")
     p_perf.add_argument("--budget", type=float, default=8.0, help="per-input time budget (s)")
+    p_perf.add_argument("--fuzz", action="store_true", help="auto-discover amplifier fragments")
+    p_perf.add_argument("--seed", type=int, default=0, help="perf-fuzz seed")
     p_perf.set_defaults(func=_cmd_perf)
 
     args = parser.parse_args(argv)

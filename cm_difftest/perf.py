@@ -31,6 +31,7 @@ __all__ = [
     "growth_exponent",
     "dos_threshold",
     "run_perf",
+    "fuzz_amplifiers",
 ]
 
 # Input families whose *length* is linear in n (so time should be ~linear for a
@@ -159,6 +160,67 @@ def dos_threshold(adapter, family: str, *, target_seconds: float = 1.0,
             return len(md)
         n *= 2
     return None
+
+
+def fuzz_amplifiers(
+    adapters=None,
+    *,
+    seed: int = 0,
+    n_fragments: int = 600,
+    reps=(1000, 2000, 4000, 8000),
+    budget: float = 5.0,
+    exponent_threshold: float = 1.6,
+    reference: str = "cmark",
+) -> list[dict]:
+    """Auto-discover amplifier fragments: short snippets whose *repetition*
+    makes a parser superlinear (or recurse) while the reference stays ~linear.
+
+    Returns a list of {parser, fragment, kind, exponent, ref_exponent}. Used to
+    find DoS patterns beyond the hand-picked FAMILIES (deterministic per seed).
+    """
+    import random
+
+    adapters = adapters if adapters is not None else default_adapters()
+    by_name = {a.name: a for a in adapters}
+    ref = by_name.get(reference)
+    toks = list("*_`~[]()!>#-+\\<>& a\"'|:.")
+    rng = random.Random(seed)
+    frags = {"".join(rng.choice(toks) for _ in range(rng.randint(2, 6))) for _ in range(n_fragments)}
+
+    results = []
+    for frag in frags:
+        if not frag.strip():
+            continue
+        for a in adapters:
+            if a.name == reference:
+                continue
+            sizes, times, rec = [], [], False
+            for r in reps:
+                md = frag * r
+                status, secs = measure(a, md, budget=budget)
+                if status == "recursion":
+                    rec = True
+                    break
+                sizes.append(len(md))
+                times.append(secs if status == "ok" else float("inf"))
+            if rec:
+                results.append({"parser": a.name, "fragment": frag, "kind": "recursion",
+                                "exponent": None, "ref_exponent": None})
+                continue
+            ok = [(s, t) for s, t in zip(sizes, times) if t != float("inf")]
+            exp = growth_exponent([s for s, _ in ok], [t for _, t in ok])
+            if exp is not None and exp > exponent_threshold and ref is not None:
+                rsizes, rtimes = [], []
+                for r in reps:
+                    st, sc = measure(ref, frag * r, budget=budget)
+                    if st == "ok":
+                        rsizes.append(len(frag * r)); rtimes.append(sc)
+                rexp = growth_exponent(rsizes, rtimes)
+                if rexp is None or rexp < 1.3:
+                    results.append({"parser": a.name, "fragment": frag, "kind": "superlinear",
+                                    "exponent": round(exp, 2),
+                                    "ref_exponent": None if rexp is None else round(rexp, 2)})
+    return results
 
 
 def run_perf(adapters=None, ns=(500, 1000, 2000, 4000, 8000), *, budget: float = 10.0) -> list[Outcome]:

@@ -23,6 +23,24 @@ Quadratic time on linear input is a classic amplification vector: a few kilobyte
 of `[[[[…]]]]` or `[](` `[](` … pins a CPU for seconds. cmark and markdown-it-py
 stay ≈linear on the same inputs.
 
+### Auto-discovered minimal amplifier (perf-fuzzer)
+
+A perf-fuzzer (`fuzz_amplifiers` — scale random fragments, compare growth
+exponents vs the reference) reduced the mistletoe case to **a single repeated
+closing bracket**:
+
+```python
+import mistletoe, time
+s = "]" * 8000
+t = time.perf_counter(); mistletoe.markdown(s); print(time.perf_counter() - t)  # ~1.4 s
+```
+
+`]`×n → mistletoe **exp ≈ 1.98** (quadratic); markdown-it-py, marko, and cmark
+are all ≈linear on it. So mistletoe's quadratic blowup is **general to closing
+brackets** (link/bracket resolution rescans on every `]`), not specific to a
+nesting shape — the most severe and minimal form. (marko's quadratic is narrower:
+the *balanced/nested* `[`×n`]`×n and `[](`×n cases; it is linear on plain `]`×n.)
+
 ## Unbounded recursion — stack overflow on nesting depth
 
 | Input | Offender | Result | Crash size |
