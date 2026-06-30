@@ -1,14 +1,15 @@
 # PR (ready to submit): mistletoe — O(n²) blowup on bracket runs
 
-**Repo:** miyuchina/mistletoe · **Base:** v1.5.1 · **Patches (two commits):**
+**Repo:** miyuchina/mistletoe · **Base:** v1.5.1 · **Patches (three commits):**
 [`0003-…-closing-bracket-runs-in-find_core_tokens.patch`](patches/mistletoe/) +
-[`0004-…-balanced-bracket-runs-in-find_link_image.patch`](patches/mistletoe/)
+[`0004-…-balanced-bracket-runs-in-find_link_image.patch`](patches/mistletoe/) +
+[`0005-…-cap-link-destination-paren-nesting-at-32.patch`](patches/mistletoe/)
 
 > Independent of the crash and list-marker fixes (touches only
 > `core_tokens.py` / `test_core_tokens.py`), so it can be filed as its own PR or
-> applied alongside. `git am` both patches.
+> applied alongside. `git am` all three patches.
 
-Two independent O(n²) sources in mistletoe's inline parser conspire to make a
+Three independent O(n²) sources in mistletoe's inline parser conspire to make a
 few KB of brackets pin the CPU for seconds (an untrusted-input amplification /
 DoS vector). cmark and markdown-it-py are linear on all of these.
 
@@ -17,6 +18,11 @@ DoS vector). cmark and markdown-it-py are linear on all of these.
 | `]`×n            | exp ≈1.95 (O(n²)) | exp ≈0.90 (linear) — commit 0003 |
 | `[a]`×n          | exp ≈1.94 (O(n²)) | exp ≈1.00 (linear) — commit 0003 |
 | `[`×n`]`×n       | exp ≈1.96 (O(n²)) | exp ≈0.99 (linear) — commit 0004 |
+| `[](`×n          | exp ≈1.99 (O(n²)) | exp ≈1.12 (linear) — commit 0005 |
+
+Commit 0005 also fixes a **conformance** divergence: mistletoe parsed link
+destinations nested >32 parens deep as links, where cmark (and the spec's
+reference parser) treat them as literal text.
 
 ---
 
@@ -160,13 +166,62 @@ correctness tests covering the index-based removal paths.
 
 ---
 
-## Remaining (not in this PR)
+## Commit 0005 — link-destination paren cap (`match_link_dest`)
 
-`[](`×n is still quadratic from a **third, independent** source:
-`match_link_dest` scans to end-of-input counting never-closing `(` on every `]`.
-That one is a deeper change to link-destination scanning and is left for a
-separate investigation (documented in
-[`mistletoe-dos.md`](mistletoe-dos.md) / [`../performance.md`](../performance.md)).
+### Suggested PR title
+
+> Fix: cap link-destination paren nesting at 32 (matches cmark; fixes O(n²) on `[](`×n)
+
+### Suggested PR body
+
+**What** — `[](`×n is quadratic, *and* destinations nested >32 parens deep are
+mis-parsed as links.
+
+```python
+import mistletoe, time
+for n in (1000, 2000, 4000, 8000):
+    s = "[](" * n
+    t = time.perf_counter(); mistletoe.markdown(s)
+    print(3 * n, round(time.perf_counter() - t, 4))
+# before:  exponent ≈ 1.99 (O(n²));  after: exponent ≈ 1.1 (linear)
+
+# conformance: a destination nested 33 deep
+md = "[a](" + "(" * 33 + "x" + ")" * 33 + ")"
+# cmark 0.31.2: literal text (not a link);  mistletoe before: <a href=…> (wrong)
+```
+
+**Root cause** — `match_link_dest` scans a bare (non-`<>`) destination counting
+nested `(`/`)` with **no depth limit**. For `[](`×n (a run of unbalanced `(`
+with no closing `)`) the counter never returns to zero, so every `]` scans to
+end-of-input → **O(n²)** (profiling `'[]('*2000`: `match_link_dest` = 98% of
+runtime).
+
+**Fix** — adopt the same cap as CommonMark's reference parser
+(`cmark`’s `manual_scan_link_url_2`: `if (nb_p > 32) return -1;`). mistletoe's
+`count` starts at 1 for the link's own `(`, so depth >32 ⇔ `count > 33`:
+
+```diff
+                 if c == '(':
+                     count += 1
++                    if count > 33:
++                        return None
+                 elif c == ')':
+                     count -= 1
+```
+
+This bounds the scan to ~32 characters per `]` (→ linear) **and** makes
+mistletoe agree with cmark on deep nesting.
+
+**Verification** — patched mistletoe agrees with cmark at destination paren
+depths **1…100** (boundary exactly at 32/33); **0 output diffs** vs original
+across spec.txt (652) and 12k bracket-heavy fuzz inputs (which never nest >32
+deep); `[](`×n drops from exp ≈1.99 to ≈1.12. Full suite: **342 passed, 1
+skipped**.
+
+**Tests** — added a 32/33-boundary conformance test and a linear-scaling test
+for `[](`×n.
+
+---
 
 **Found by** differential algorithmic-complexity measurement vs the cmark
 reference.

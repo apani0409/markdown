@@ -16,14 +16,14 @@ block-nesting depth instead of recursing unboundedly.
 
 ## 2. Quadratic time on linear input (amplification)
 
-> **Status: two of the three bracket families now have verified fixes** —
+> **Status: all three bracket families now have verified fixes** —
 > [`mistletoe-quadratic-brackets-PR.md`](mistletoe-quadratic-brackets-PR.md) /
-> [`patches/mistletoe/0003-*.patch` + `0004-*.patch`](patches/mistletoe/).
-> `]`×n and `[a]`×n (rescan guard, commit 0003) and `[`×n`]`×n (index-based
-> opener removal, commit 0004) go from exponent ≈1.95 to ≈0.90–1.00 (linear),
-> behaviour-preserving (0 diffs on spec.txt + 12k fuzz inputs), 340 tests pass.
-> **Still open:** `[](`×n — a third, independent source (`match_link_dest` scans
-> to EOF counting never-closing `(` on every `]`).
+> [`patches/mistletoe/0003-*.patch` + `0004-*.patch` + `0005-*.patch`](patches/mistletoe/).
+> `]`×n / `[a]`×n (rescan guard, 0003), `[`×n`]`×n (index-based opener removal,
+> 0004) and `[](`×n (cmark's 32-deep paren cap, 0005) all go from exponent ≈1.95
+> to ≈0.9–1.1 (linear), behaviour-preserving (0 diffs on spec.txt + 12k fuzz
+> inputs), 342 tests pass. Commit 0005 additionally fixes a conformance bug
+> (>32-deep destinations parsed as links; cmark treats them as literal text).
 
 Minimal trigger — **a single repeated closing bracket**:
 

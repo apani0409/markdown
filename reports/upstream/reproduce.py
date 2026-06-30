@@ -68,27 +68,32 @@ def show_perf() -> None:
     import time
 
     print("=" * 72)
-    print("DoS CLASS: mistletoe is O(n^2) on a run of closing brackets ']'*n,")
-    print("while markdown-it-py and marko stay ~linear (cmark too). A few KB of")
-    print("']' pins the CPU for seconds. (Fixed by patches/mistletoe/0003-*.patch:")
-    print("the link/bracket resolver re-scanned the whole string on every ']'.)")
+    print("DoS CLASS: mistletoe is O(n^2) on linear runs of brackets, while")
+    print("markdown-it-py and marko stay ~linear (cmark too). A few KB pins the")
+    print("CPU for seconds. (Fixed by patches/mistletoe/0003..0005-*.patch:")
+    print("rescan-per-']', O(n) opener removal, and an uncapped link-dest scan.)")
     impls = (
         ("markdown-it-py", lambda s: mdit.render(s)),
         ("mistletoe", mistletoe.markdown),
         ("marko", lambda s: marko.Markdown()(s)),
     )
+    families = {
+        "']'*n": lambda n: "]" * n,
+        "'[]('*n": lambda n: "[](" * n,
+    }
     sizes = (1000, 2000, 4000, 8000)
-    for name, fn in impls:
-        times = []
-        for n in sizes:
-            s = "]" * n
-            t0 = time.perf_counter()
-            fn(s)
-            times.append(time.perf_counter() - t0)
-        ratio = times[-1] / times[0] if times[0] else float("inf")
-        shape = "QUADRATIC" if ratio > 20 else "~linear"
-        cols = "  ".join(f"n={n}:{t:.4f}s" for n, t in zip(sizes, times))
-        print(f"  {name:15} {cols}   8x->{ratio:.0f}x  [{shape}]")
+    for fam, mk in families.items():
+        print(f"-- input family {fam} --")
+        for name, fn in impls:
+            times = []
+            for n in sizes:
+                t0 = time.perf_counter()
+                fn(mk(n))
+                times.append(time.perf_counter() - t0)
+            ratio = times[-1] / times[0] if times[0] else float("inf")
+            shape = "QUADRATIC" if ratio > 20 else "~linear"
+            cols = "  ".join(f"n={n}:{t:.4f}s" for n, t in zip(sizes, times))
+            print(f"  {name:15} {cols}   8x->{ratio:.0f}x  [{shape}]")
 
 
 def main() -> None:

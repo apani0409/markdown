@@ -41,7 +41,7 @@ brackets** (link/bracket resolution rescans on every `]`), not specific to a
 nesting shape — the most severe and minimal form. (marko's quadratic is narrower:
 the *balanced/nested* `[`×n`]`×n and `[](`×n cases; it is linear on plain `]`×n.)
 
-> **Root-caused + fixed (verified) — two of the three bracket families.**
+> **Root-caused + fixed (verified) — all three bracket families now linear.**
 > 1. `]`×n, `[a]`×n: `find_core_tokens` cached the next code-span match but
 >    re-ran the full-string `code_pattern.search` after *every* `]` — one O(n)
 >    scan per `]` → O(n²) (profiling `']'*8000`: 8001 `re.search` calls = 98% of
@@ -50,14 +50,18 @@ the *balanced/nested* `[`×n`]`×n and `[](`×n cases; it is linear on plain `]`
 >    list and removed the opener with `list.remove` (O(n) by-value scan) on every
 >    `]` (profiling `'['*4000+']'*4000`: `list.remove` = 57% of runtime).
 >    Index-based iteration + `del delimiters[i]` makes it **linear** (exp ≈0.99).
+> 3. `[](`×n: `match_link_dest` scanned a bare destination counting nested `(`
+>    with no depth limit, so a run of never-closing `(` scanned to EOF on every
+>    `]` (profiling `'[]('*2000`: `match_link_dest` = 98% of runtime). Adopting
+>    cmark's 32-deep paren cap makes it **linear** (exp ≈1.12) *and* fixes a
+>    conformance bug (mistletoe parsed >32-deep destinations as links; cmark and
+>    the spec treat them as literal text).
 >
-> Both are behaviour-preserving (**0 output diffs** vs unpatched across spec.txt's
-> 652 examples and 12,150 bracket/backtick-heavy fuzz inputs; **340 tests pass**).
+> All three are behaviour-preserving (**0 output diffs** vs unpatched across
+> spec.txt's 652 examples and 12,150 bracket/backtick-heavy fuzz inputs — the
+> only change is depth>32 destinations now matching cmark; **342 tests pass**).
 > See [`upstream/mistletoe-quadratic-brackets-PR.md`](upstream/mistletoe-quadratic-brackets-PR.md)
-> and [`upstream/patches/mistletoe/0003-*.patch`, `0004-*.patch`](upstream/patches/mistletoe/).
-> **Still open:** `[](`×n has a third, independent source — `match_link_dest`
-> scans to EOF counting never-closing `(` on every `]` (profiling `'[]('*2000`:
-> `match_link_dest` = 98% of runtime).
+> and [`upstream/patches/mistletoe/0003-*.patch`, `0004-*.patch`, `0005-*.patch`](upstream/patches/mistletoe/).
 
 ## Unbounded recursion — stack overflow on nesting depth
 
