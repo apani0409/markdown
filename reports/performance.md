@@ -11,12 +11,14 @@ mistletoe, not anything inherent to CommonMark.
 
 ## Superlinear (≈quadratic) scaling — amplification / DoS
 
-| Input family | Offender | Growth exponent | Size to reach ~1 s |
-|---|---|---:|---:|
-| `[`×n + `]`×n | **marko** 2.2.3 | ~2.07 | ~8 KB |
-| `[`×n + `]`×n | **mistletoe** 1.5.1 | ~1.95 | ~16 KB |
-| `[](`×n | **mistletoe**, **marko** | ~1.98 (then timeout) | ~12 KB |
-| `[a]`×n | **mistletoe** | ~1.94 | ~12 KB |
+| Input family | Offender | Growth exponent | Status |
+|---|---|---:|---|
+| `]`×n | **mistletoe** 1.5.1 | ~1.95 | **fixed** (0003) |
+| `[a]`×n | **mistletoe** | ~1.94 | **fixed** (0003) |
+| `[`×n + `]`×n | **mistletoe** | ~1.95 | **fixed** (0004) |
+| `[](`×n | **mistletoe** | ~1.98 | **fixed** (0005) |
+| `[](`×n | **marko** 2.2.3 | ~1.99 | **fixed** ([marko 0003](upstream/patches/marko/)) |
+| `[`×n + `]`×n | **marko** | ~2.07 | open (`is_paired` link-text re-scan) |
 | `*_`×n | **mistletoe** | ~1.64 (mild) | — |
 
 Quadratic time on linear input is a classic amplification vector: a few kilobytes

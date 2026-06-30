@@ -22,10 +22,10 @@ iterative).
 
 Parse time grows ~O(n²) while input length is linear:
 
-| Input family | Growth exponent | ~size to reach 1 s |
-|---|---:|---:|
-| `[`×n + `]`×n | ~2.07 | ~8 KB |
-| `[](`×n | ~1.99 (then very slow) | ~12 KB |
+| Input family | Growth exponent | Status |
+|---|---:|---|
+| `[](`×n | ~1.99 | **verified fix** — [PR](marko-quadratic-paren-PR.md) / [`patches/marko/0003-*.patch`](patches/marko/) |
+| `[`×n + `]`×n | ~2.07 | open (independent source: `is_paired` re-scans link text) |
 
 ```python
 import marko, time
@@ -35,6 +35,15 @@ t = time.perf_counter(); marko.convert(s); print(time.perf_counter() - t)  # ~1s
 
 cmark and markdown-it-py stay ≈linear on the same inputs, so this is specific to
 marko's link/bracket handling, not inherent to CommonMark.
+
+> **`[](`×n fixed (verified).** `_parse_link_dest_title` scanned a bare link
+> destination counting nested `(` with no limit → `[](`×n scanned to EOF on every
+> `]` (O(n²); `_parse_link_dest_title` = 80% of runtime). Adopting cmark's 32-deep
+> paren cap makes it **linear** (exp ≈0.93) *and* fixes a conformance bug (marko
+> parsed >32-deep destinations as links; cmark/spec treat them as literal text).
+> Verified: agrees with cmark at depths 1–100; 0 diffs vs original on spec.txt +
+> 12k fuzz; **1412 tests pass**. `[`×n`]`×n remains open (the `is_paired` link-text
+> re-scan is a deeper change with no spec cap analogue).
 
 ## How it was found
 

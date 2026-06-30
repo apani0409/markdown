@@ -27,7 +27,7 @@ Built in strict milestone order (see [`docs/analysis.md`](docs/analysis.md)):
   inputs, minimized and adversarially triaged into genuine bugs (see
   [`reports/findings-m2.md`](reports/findings-m2.md)). Atheris also surfaced a
   **crash** in mistletoe.
-- **M3 — Upstream contribution** — ✅ **five verified fix patches + more drafts.**
+- **M3 — Upstream contribution** — ✅ **six verified fixes (eight patches) + more drafts.**
   Ready-to-submit, root-cause patches (validated against each project's own test
   suite) plus issue drafts and CommonMark spec-test proposals in
   [`reports/upstream/`](reports/upstream/) (the actual submission is left to a
@@ -35,7 +35,7 @@ Built in strict milestone order (see [`docs/analysis.md`](docs/analysis.md)):
 
 ### Verified fixes (root-cause patches, each project's own suite passes)
 
-Five ready-to-submit fixes ([`reports/upstream/patches/`](reports/upstream/patches/)),
+Six ready-to-submit fixes ([`reports/upstream/patches/`](reports/upstream/patches/)),
 each validated against the target project's test suite:
 
 - **mistletoe** — `IndexError` crash in `process_emphasis` (class of emphasis
@@ -55,6 +55,10 @@ each validated against the target project's test suite:
   branch). **1401 tests pass.** [PR](reports/upstream/marko-bang-html-block-PR.md)
 - **marko** — lone list marker at EOF → paragraph (allow end-of-input in the
   marker pattern). **1408 tests pass.** [PR](reports/upstream/marko-lone-list-marker-PR.md)
+- **marko** — **O(n²) DoS** on `[](`×n: uncapped link-destination paren scan ran
+  to EOF on every `]`. Adopt cmark's 32-deep cap → **linear** (exp 1.99→0.93);
+  also fixes a conformance bug (>32-deep destinations now match cmark).
+  **1412 tests pass.** [PR](reports/upstream/marko-quadratic-paren-PR.md)
 
 Crash-fuzzing summary: marko + markdown-it survived ~1.5 M inputs with **0
 crashes**; mistletoe's one crash class is fixed (600 k re-fuzz of the patched
