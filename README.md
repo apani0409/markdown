@@ -117,10 +117,11 @@ not formatting artifacts — the differential-fuzzing seed list for M2.
 - [`reports/findings-verified.md`](reports/findings-verified.md) — full adversarially-verified catalog (36 cases).
 - [`reports/findings-mistletoe.md`](reports/findings-mistletoe.md) — mistletoe deep-dive (6 more bugs + flavor note).
 - [`reports/security-phase3.md`](reports/security-phase3.md) — sanitization/XSS posture (0 bypasses in 18k vectors).
+- [`reports/performance.md`](reports/performance.md) — algorithmic-complexity / DoS (quadratic + RecursionError in marko/mistletoe; markdown-it-py/cmark robust).
 - [`reports/upstream/`](reports/upstream/) — 15 ready-to-file issue drafts + spec-test proposals + standalone reproducer.
 - [`docs/analysis.md`](docs/analysis.md) · [`docs/decisions.md`](docs/decisions.md) — analysis log + decision record.
 
-Re-run anything: `cm-difftest scorecard` · `cm-difftest fuzz` · `cm-difftest security` · `cm-difftest render "<md>"`.
+Re-run anything: `cm-difftest scorecard` · `cm-difftest fuzz` · `cm-difftest security` · `cm-difftest perf` · `cm-difftest render "<md>"`.
 
 ## Layout
 
