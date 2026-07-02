@@ -71,23 +71,25 @@ Re-running the complexity scan against the **patched** parsers (so the fixed
 bracket families don't mask anything) surfaces a deeper, shared O(n²) class in
 *emphasis* resolution:
 
-| Input family | mistletoe (patched) | marko (patched) |
+| Input family | mistletoe | marko (patched) |
 |---|---:|---:|
-| `*_`×n          | exp ≈1.86 | ≈1.0 |
-| `*[`×n          | exp ≈1.80 | ≈1.44 |
-| `[*`×n`*]`×n    | exp ≈2.02 | **timeout** |
-| `[`×n`]`×n      | (fixed) | exp ≈2.10 |
+| `*_`×n          | ~~1.86~~ → **1.10** (fixed 0008) | ≈1.0 |
+| `*_a`×n         | ~~1.67~~ → **1.16** (fixed 0008) | ≈1.0 |
+| `*[`×n          | ~~1.80~~ → **1.14** (fixed 0008) | ≈1.44 |
+| `[*`×n`*]`×n    | ~~2.02~~ → 1.78 (open) | **timeout** (open) |
+| `[`×n`]`×n      | (fixed 0004) | exp ≈2.10 (open) |
 
-Root cause: both parsers resolve emphasis/links over a single Python **list** of
-delimiters with per-closing-delimiter O(n) operations — slice copies in
-`next_closer`/`matching_opener`, `list.remove()`/`del` from the middle, and a
-backward scan past emphasis delimiters to find a matching `[`. cmark stays linear
-via a doubly-linked delimiter list + a separate bracket stack. A full fix is a
-structural refactor (high regression risk for famously subtle emphasis rules), so
-this layer is **root-caused and reported but not patched** — see
-[`upstream/emphasis-quadratic.md`](upstream/emphasis-quadratic.md). (A safe
-slice→index micro-optimization verified 0 diffs and lowers `*_`×n to exp ≈1.25
-but does not by itself linearize the class.)
+Both parsers resolve emphasis/links over a single Python **list** of delimiters
+with per-closing-delimiter O(n) operations. **mistletoe's pure-emphasis
+quadratic is now fixed (0008):** the cause was slice copies in
+`next_closer`/`matching_opener` + O(n) by-value `list.remove` — a localized,
+provably-equivalent index-based refactor (0 diffs on spec.txt + 20k fuzz, 348
+tests) linearizes `*_`×n / `*_a`×n / `*[`×n. See
+[`upstream/mistletoe-emphasis-quadratic-PR.md`](upstream/mistletoe-emphasis-quadratic-PR.md).
+**Still open:** the bracket×emphasis interleaving `[*`×n`*]`×n (mistletoe + marko)
+and marko `[`×n`]`×n — factor (3), a backward scan past emphasis delimiters that
+needs a *separate bracket stack* (as cmark uses), a structural change
+[documented](upstream/emphasis-quadratic.md) rather than shipped.
 
 ## Unbounded recursion — stack overflow on nesting depth
 

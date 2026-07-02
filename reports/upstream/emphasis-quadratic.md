@@ -1,7 +1,17 @@
 # [mistletoe + marko] DoS: O(n²) emphasis/bracket delimiter resolution
 
 **Targets:** miyuchina/mistletoe 1.5.1, frostming/marko 2.2.3 · **Python:** 3.11
-**Severity:** medium (untrusted-input amplification / DoS) · **Status:** root-caused, **not** patched (see "Why not fixed here").
+**Severity:** medium (untrusted-input amplification / DoS) · **Status:** mistletoe's pure-emphasis case **fixed & verified** (patch 0008, see below); the bracket×emphasis interleaving and marko's balanced brackets remain (see "What remains").
+
+> **Update — mistletoe pure-emphasis runs are now fixed (verified).** It turned
+> out *not* to need a linked-list refactor: the O(n²) came from per-closer list
+> *slice copies* (`next_closer`/`matching_opener`) and O(n) *by-value*
+> `list.remove`, not from the `openers_bottom` bucketing. A pure index-based
+> refactor (`del delimiters[i]`, `range(...)` instead of slices) linearizes
+> `*_`×n (1.5→1.1), `*_a`×n (1.67→1.16), `*[`×n (1.8→1.14), behaviour-preserving
+> (0 diffs on spec.txt + 20k fuzz, 348 tests). See
+> [`mistletoe-emphasis-quadratic-PR.md`](mistletoe-emphasis-quadratic-PR.md) /
+> [`patches/mistletoe/0008-*.patch`](patches/mistletoe/).
 
 After the bracket-run quadratics were fixed (mistletoe 0003–0005, marko 0003),
 a re-baseline of all input families against the **patched** parsers surfaces a
@@ -12,9 +22,10 @@ and markdown-it-py are linear on all of these.
 
 | Input family | mistletoe 1.5.1 | marko 2.2.3 |
 |---|---:|---:|
-| `*_`×n          | exp ≈1.86 | ≈1.0 (ok) |
-| `*[`×n          | exp ≈1.80 | ≈1.44 |
-| `[*`×n`*]`×n    | exp ≈2.02 | **timeout** |
+| `*_`×n          | ~~1.86~~ → **1.10** (fixed 0008) | ≈1.0 (ok) |
+| `*_a`×n         | ~~1.67~~ → **1.16** (fixed 0008) | ≈1.0 (ok) |
+| `*[`×n          | ~~1.80~~ → **1.14** (fixed 0008) | ≈1.44 |
+| `[*`×n`*]`×n    | ~~2.02~~ → 1.78 (still open) | **timeout** |
 | `[`×n`]`×n      | (fixed, 0004) | exp ≈2.10 |
 
 ```python
@@ -29,33 +40,33 @@ mistletoe `core_tokens.py` and marko `inline_parser.py` both resolve emphasis
 and links over a single Python **list** of delimiters, with several per-element
 operations that are each O(n):
 
-1. **Per-call list-slice copies.** mistletoe's `next_closer` iterates
-   `delimiters[curr_pos:]` and `matching_opener` iterates
-   `delimiters[curr_pos-1:bottom:-1]` — each call copies the scanned span. On a
-   long delimiter run (`*_`×n) this alone is O(n²).
-   *(A safe slice→index rewrite verified 0 output diffs on spec.txt + 12k fuzz
-   and lowers `*_`×n from exp ≈1.86 to ≈1.25 — but does not by itself linearize
-   the family, because of (2) and (3).)*
-2. **O(n) `list.remove()` / `del list[i]` by value/shift.** Both parsers remove
-   spent delimiters from the middle of the list (`delimiters.remove(opener)` /
-   `del delimiters[…]`), each O(n).
-3. **Backward scan past emphasis delimiters.** For `[*`×n`*]`×n, mistletoe's
-   `find_link_image` (and marko's `look_for_image_or_link`) scan *backwards
-   through the whole delimiter list* — including all interleaved `*` delimiters —
-   to find the matching `[`. cmark avoids this with a *separate* bracket stack
-   (`subj->last_bracket`); these parsers keep brackets and emphasis in one list.
+1. **Per-call list-slice copies.** mistletoe's `next_closer` iterated
+   `delimiters[curr_pos:]` and `matching_opener` iterated
+   `delimiters[curr_pos-1:bottom:-1]` — each call copied the scanned span.
+   **(mistletoe: fixed in 0008 — index iteration.)**
+2. **O(n) `list.remove()` by value.** mistletoe removed spent delimiters with
+   `delimiters.remove(x)` (a by-value list scan) once per closer.
+   **(mistletoe: fixed in 0008 — `del delimiters[i]` at the known index.)**
+   Together (1)+(2) were the *entire* cause of the pure-emphasis quadratic;
+   fixing them made `*_`×n / `*_a`×n / `*[`×n linear with **0 behaviour change**.
+3. **Backward scan past emphasis delimiters (still open).** For `[*`×n`*]`×n,
+   mistletoe's `find_link_image` (and marko's `look_for_image_or_link`) scan
+   *backwards through the whole delimiter list* — including all interleaved `*`
+   delimiters — to find the matching `[`. cmark avoids this with a *separate*
+   bracket stack (`subj->last_bracket`); these parsers keep brackets and emphasis
+   in one list.
 
-## Why this is not fixed here
+## What remains (deeper, not patched)
 
-The CommonMark reference (cmark) keeps emphasis/link resolution linear by using a
-**doubly-linked list** of delimiters plus a *separate* bracket stack, so removals
-are O(1) and the bracket lookup never walks emphasis delimiters. Reproducing that
-in mistletoe/marko is a **structural refactor** of the inline parser, not a
-localized change — high regression risk for a parser whose emphasis rules are
-famously subtle. The conservative, verifiable wins (the bracket-run fixes) were
-shipped; this deeper class is reported with its root cause so maintainers can
-decide on the larger change. The slice→index micro-optimization in (1) is
-available as a safe partial mitigation if wanted.
+- **mistletoe `[*`×n`*]`×n** and **marko `[`×n`]`×n / `[*`×n`*]`×n** — factor (3),
+  the bracket×emphasis interleaving. Making the `[` lookup skip emphasis
+  delimiters needs a *separate bracket stack* (as cmark uses), a structural change
+  with real regression risk for famously-subtle emphasis rules. Reported with root
+  cause rather than shipped.
+- Note the earlier assumption that the *whole* class needed a doubly-linked-list
+  refactor was **wrong**: the pure-emphasis quadratic (factors 1+2) was fixable
+  with a localized, provably-equivalent refactor (patch 0008). Only factor (3)
+  needs the bigger change.
 
 ## How it was found
 
