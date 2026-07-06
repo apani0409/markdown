@@ -18,6 +18,8 @@ session that produced these had read-only, single-repo GitHub scope).
 | [mistletoe-setext-in-blockquote.md](mistletoe-setext-in-blockquote.md) | mistletoe | setext heading missed inside a block quote | medium |
 | **[PR](mistletoe-setext-mixed-underline-PR.md)** ✅ | mistletoe | mixed `=-` wrongly accepted as a setext underline — **verified fix, strictly improving (1111 fixes, 0 regressions), 350 tests** | medium |
 | **[PR](mistletoe-atx-hash-content-PR.md)** ✅ | mistletoe | ATX heading over-strips a `#`-only content run (`# # #`→empty) — **verified fix, strictly improving (638 fixes, 0 regressions), 351 tests** | medium |
+| **[PR](mistletoe-empty-processing-instruction-PR.md)** ✅ | mistletoe | empty processing instruction `<??>` escaped instead of raw HTML — **verified fix, strictly improving (1228 fixes, 0 regressions), 351 tests** | low/med |
+| [mistletoe-misc-block-divergences.md](mistletoe-misc-block-divergences.md) | mistletoe | whitespace-only tab line → code block; `\` dropped before a code span — root-caused, not patched | low/med |
 | [mistletoe-autolink-whitespace.md](mistletoe-autolink-whitespace.md) · **[PR](mistletoe-autolink-whitespace-PR.md)** ✅ | mistletoe | autolink accepts control chars (tab/newline) in URI — **verified fix, 343 tests pass** | medium |
 | [mistletoe-backslash-hardbreak-cr.md](mistletoe-backslash-hardbreak-cr.md) | mistletoe | backslash hard break missed before CR | low |
 | [markdown-it-py-image-alt-text.md](markdown-it-py-image-alt-text.md) · **[PR](markdown-it-py-image-alt-PR.md)** ✅ | markdown-it-py | image `alt` drops entities/escapes/code/hard-breaks — **verified fix, alt matches cmark, spec 652/652 unchanged** | medium |

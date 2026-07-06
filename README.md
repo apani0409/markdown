@@ -27,7 +27,7 @@ Built in strict milestone order (see [`docs/analysis.md`](docs/analysis.md)):
   inputs, minimized and adversarially triaged into genuine bugs (see
   [`reports/findings-m2.md`](reports/findings-m2.md)). Atheris also surfaced a
   **crash** in mistletoe.
-- **M3 — Upstream contribution** — ✅ **twelve verified fixes (fourteen patches) across all three parsers + more drafts.**
+- **M3 — Upstream contribution** — ✅ **thirteen verified fixes (fifteen patches) across all three parsers + more drafts.**
   Ready-to-submit, root-cause patches (validated against each project's own test
   suite) plus issue drafts and CommonMark spec-test proposals in
   [`reports/upstream/`](reports/upstream/) (the actual submission is left to a
@@ -35,7 +35,7 @@ Built in strict milestone order (see [`docs/analysis.md`](docs/analysis.md)):
 
 ### Verified fixes (root-cause patches, each project's own suite passes)
 
-Twelve ready-to-submit fixes ([`reports/upstream/patches/`](reports/upstream/patches/)),
+Thirteen ready-to-submit fixes ([`reports/upstream/patches/`](reports/upstream/patches/)),
 each validated against the target project's test suite:
 
 - **mistletoe** — `IndexError` crash in `process_emphasis` (class of emphasis
@@ -62,6 +62,10 @@ each validated against the target project's test suite:
   heading); keep it unless it is the closing sequence. Strictly improving vs cmark
   (638 fixes, 0 regressions). **351 tests pass.**
   [PR](reports/upstream/mistletoe-atx-hash-content-PR.md)
+- **mistletoe** — empty processing instruction `<??>` was escaped instead of kept
+  as raw inline HTML (`.+?`→`.*?`). Strictly improving vs cmark (1228 fixes, 0
+  regressions). **351 tests pass.**
+  [PR](reports/upstream/mistletoe-empty-processing-instruction-PR.md)
 - **mistletoe** — **O(n²) DoS** on bracket runs (three independent causes): a
   full-string code-span rescan on every `]` (`]`×n, `[a]`×n); an O(n)
   reversed-copy + `list.remove` opener lookup (`[`×n`]`×n); and an uncapped

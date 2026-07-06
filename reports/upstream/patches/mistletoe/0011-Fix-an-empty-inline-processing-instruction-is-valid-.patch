@@ -1,0 +1,49 @@
+From 476b1e8a5f9981a5fe216af8864f01b7c2575118 Mon Sep 17 00:00:00 2001
+From: cmd <a@b.c>
+Date: Mon, 6 Jul 2026 05:26:33 +0000
+Subject: [PATCH] Fix: an empty inline processing instruction ('<??>') is valid
+ HTML
+
+The inline-HTML processing-instruction pattern was r'(?<!\\)<\?.+?\?>', whose
+.+? requires at least one character between '<?' and '?>'. CommonMark allows an
+empty processing instruction, so '<??>' (and thus 'a<??>b') was escaped as text
+instead of kept as raw inline HTML. Use .*? .
+
+Verified vs cmark on a processing-instruction matrix; isolated before/after diff
+over spec.txt + 12k PI-shaped inputs is strictly improving (1228 fixes, 0
+regressions). 351 tests pass. Adds a test.
+---
+ mistletoe/span_token.py | 2 +-
+ test/test_span_token.py | 6 ++++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/mistletoe/span_token.py b/mistletoe/span_token.py
+index a767c0c..b2b645e 100644
+--- a/mistletoe/span_token.py
++++ b/mistletoe/span_token.py
+@@ -281,7 +281,7 @@ _attrs = r'(?:\s+[A-Za-z_:][A-Za-z0-9_.:-]*(?:\s*=\s*(?:[^\s"\'=<>`]+|\'[^\']*?\
+ _open_tag    = r'(?<!\\)<' + _tag + _attrs + r'\s*/?>'  # noqa: E221
+ _closing_tag = r'(?<!\\)</' + _tag + r'\s*>'
+ _comment     = r'(?<!\\)<!--(?!>|->)(?:(?!--).)+?(?<!-)-->'  # noqa: E221
+-_instruction = r'(?<!\\)<\?.+?\?>'
++_instruction = r'(?<!\\)<\?.*?\?>'  # a processing instruction may be empty ("<??>")
+ _declaration = r'(?<!\\)<![A-Z].+?>'
+ _cdata       = r'(?<!\\)<!\[CDATA.+?\]\]>'  # noqa: E221
+ 
+diff --git a/test/test_span_token.py b/test/test_span_token.py
+index 08aac61..84c76bc 100644
+--- a/test/test_span_token.py
++++ b/test/test_span_token.py
+@@ -222,3 +222,9 @@ class TestHtmlSpan(unittest.TestCase):
+         tokens = span_token.tokenize_inner('< a><\nfoo><bar/ >\n<foo bar=baz\nbim!bop />')
+         for t in tokens:
+             self.assertNotIsInstance(t, span_token.HtmlSpan)
++
++    def test_parse_empty_processing_instruction(self):
++        # A processing instruction may have empty content: '<??>'.
++        tokens = span_token.tokenize_inner('a<??>b')
++        self.assertTrue(any(isinstance(t, span_token.HtmlSpan) and t.content == '<??>'
++                            for t in tokens))
+-- 
+2.43.0
+
