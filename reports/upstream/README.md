@@ -18,6 +18,7 @@ session that produced these had read-only, single-repo GitHub scope).
 | [mistletoe-setext-in-blockquote.md](mistletoe-setext-in-blockquote.md) | mistletoe | setext heading missed inside a block quote | medium |
 | [mistletoe-autolink-whitespace.md](mistletoe-autolink-whitespace.md) · **[PR](mistletoe-autolink-whitespace-PR.md)** ✅ | mistletoe | autolink accepts control chars (tab/newline) in URI — **verified fix, 343 tests pass** | medium |
 | [mistletoe-backslash-hardbreak-cr.md](mistletoe-backslash-hardbreak-cr.md) | mistletoe | backslash hard break missed before CR | low |
+| [markdown-it-py-image-alt-text.md](markdown-it-py-image-alt-text.md) · **[PR](markdown-it-py-image-alt-PR.md)** ✅ | markdown-it-py | image `alt` drops entities/escapes/code/hard-breaks — **verified fix, alt matches cmark, spec 652/652 unchanged** | medium |
 | [markdown-it-py-lazy-continuation-after-lrd.md](markdown-it-py-lazy-continuation-after-lrd.md) | markdown-it-py, marko | lazy continuation after LRD in block quote | medium |
 | [marko-lrd-unterminated-title.md](marko-lrd-unterminated-title.md) | marko | unterminated title discards whole LRD | medium |
 | [marko-blockquote-indented-code-blank-line.md](marko-blockquote-indented-code-blank-line.md) | marko | interior blank line loses residual indent | low/med |
