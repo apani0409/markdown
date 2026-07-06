@@ -1,0 +1,99 @@
+From 63aa5b991bc67d5446b4c42b694587eda2b4480c Mon Sep 17 00:00:00 2001
+From: cmd <a@b.c>
+Date: Mon, 6 Jul 2026 04:57:11 +0000
+Subject: [PATCH] Fix: image alt text drops entities, escapes, code spans and
+ hard breaks
+
+renderInlineAsText builds the plain-text image `alt` attribute, but only
+emitted `text`, nested `image`, and `softbreak` tokens. Entities and
+backslash escapes are tokenised as `text_special` (the core `text_join` rule
+that folds them into `text` runs on top-level inline tokens, not on image-alt
+children, which are nested), so they -- along with `code_inline` and
+`html_inline` content and hard breaks -- were silently dropped from `alt`:
+
+    MarkdownIt('commonmark').render('![x&#65;y](/u)')
+    # alt was 'xy'  (the entity 'A' vanished);  CommonMark/cmark: 'xAy'
+
+CommonMark parses entity/numeric references and escapes inside image
+descriptions and shows the description with markup stripped, so their text must
+survive. Emit `text_special`/`code_inline`/`html_inline` content and render a
+hard break as a newline (as soft breaks already are).
+
+Verified against cmark 0.31.2: alt now matches on entities, hex/named refs,
+escapes, code spans and raw HTML; an isolated before/after diff over the
+CommonMark spec.txt + 15k image-shaped fuzz inputs changes only <img> alt text
+(0 other changes) and spec.txt conformance is unchanged (652/652). Adds tests.
+---
+ markdown_it/renderer.py      |  8 ++++++--
+ tests/test_image_alt_text.py | 36 ++++++++++++++++++++++++++++++++++++
+ 2 files changed, 42 insertions(+), 2 deletions(-)
+ create mode 100644 tests/test_image_alt_text.py
+
+diff --git a/markdown_it/renderer.py b/markdown_it/renderer.py
+index f690b09..5937c10 100644
+--- a/markdown_it/renderer.py
++++ b/markdown_it/renderer.py
+@@ -197,12 +197,16 @@ class RendererHTML(RendererProtocol):
+         result = ""
+ 
+         for token in tokens or []:
+-            if token.type == "text":
++            if token.type in ("text", "text_special", "code_inline", "html_inline"):
++                # ``text_special`` carries entities and backslash escapes,
++                # ``code_inline`` the code-span text, ``html_inline`` raw HTML --
++                # all of which are part of the plain-text ``alt`` per CommonMark
++                # (e.g. "![&#65;](/u)" has alt "A"). They were previously dropped.
+                 result += token.content
+             elif token.type == "image":
+                 if token.children:
+                     result += self.renderInlineAsText(token.children, options, env)
+-            elif token.type == "softbreak":
++            elif token.type in ("softbreak", "hardbreak"):
+                 result += "\n"
+ 
+         return result
+diff --git a/tests/test_image_alt_text.py b/tests/test_image_alt_text.py
+new file mode 100644
+index 0000000..a69fd90
+--- /dev/null
++++ b/tests/test_image_alt_text.py
+@@ -0,0 +1,36 @@
++"""Image ``alt`` plain-text rendering (``renderInlineAsText``).
++
++Per CommonMark, entity/numeric character references and backslash escapes are
++parsed inside image descriptions, and the ``alt`` attribute shows the
++description with markup stripped -- so their text must survive. Code-span text
++and raw inline HTML likewise contribute their text. Regression test for these
++being dropped from ``alt``.
++"""
++import pytest
++
++from markdown_it import MarkdownIt
++
++md = MarkdownIt("commonmark")
++
++
++@pytest.mark.parametrize(
++    "src,expected_alt",
++    [
++        ("![&#65;](/u)", "A"),            # numeric entity
++        ("![&#x41;](/u)", "A"),           # hex entity
++        ("![&amp;](/u)", "&amp;"),        # named entity (escaped in the attr)
++        ("![x&#65;y](/u)", "xAy"),        # entity between text
++        (r"![\!](/u)", "!"),              # backslash escape
++        ("![`c`](/u)", "c"),              # code span text
++        ("![<b>x</b>](/u)", "&lt;b&gt;x&lt;/b&gt;"),  # raw inline HTML
++        ("![*a* b](/u)", "a b"),          # emphasis markup stripped, text kept
++        ("![plain](/u)", "plain"),
++    ],
++)
++def test_image_alt_preserves_text(src, expected_alt):
++    assert ('alt="%s"' % expected_alt) in md.render(src)
++
++
++def test_image_alt_hard_break_not_dropped():
++    # a hard break inside alt must not delete the surrounding words
++    assert 'alt="a\nb"' in md.render("![a  \nb](/u)")
+-- 
+2.43.0
+

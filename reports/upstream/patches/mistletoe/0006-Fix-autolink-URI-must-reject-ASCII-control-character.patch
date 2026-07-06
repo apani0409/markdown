@@ -1,0 +1,70 @@
+From 5b30272491aded2f905d0ba05f62026920f049e1 Mon Sep 17 00:00:00 2001
+From: cmd <a@b.c>
+Date: Tue, 30 Jun 2026 08:31:04 +0000
+Subject: [PATCH] Fix: autolink URI must reject ASCII control characters and
+ space
+
+The AutoLink URI pattern used [^ <>], which only excludes space, '<' and '>'.
+CommonMark requires an absolute-URI autolink to contain no ASCII control
+characters or space: <scheme:...> with characters other than control/space/<>.
+So a tab, newline, or other C0 control inside the URI wrongly formed an autolink:
+
+    mistletoe.markdown('<hs:\t>')
+    # was: <p><a href="hs:%09">hs:\t</a></p>
+    # cmark/markdown-it-py/marko: <p>&lt;hs:\t&gt;</p> (not an autolink)
+
+Use [^\x00-\x20<>] (exclude 0x00-0x20 + '<' '>'), matching cmark's
+[^\x00-\x20<>] exactly -- including that 0x7F is still allowed (cmark allows
+it). The new class is a strict subset of the old one, so it can only stop
+forming the buggy control-char autolinks, never break a valid one.
+
+Verified: patched parser agrees with cmark across control chars; isolated
+original-vs-patched diff over spec.txt + 10k autolink-shaped inputs shows every
+single diff is 'control-char autolink correctly rejected', 0 other changes.
+Adds a regression test. Full suite: 343 passed.
+---
+ mistletoe/span_token.py |  6 +++++-
+ test/test_span_token.py | 10 ++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/mistletoe/span_token.py b/mistletoe/span_token.py
+index 86f0c88..a767c0c 100644
+--- a/mistletoe/span_token.py
++++ b/mistletoe/span_token.py
+@@ -201,7 +201,11 @@ class AutoLink(SpanToken):
+         mailto (bool): true iff the target looks like an email address, but does not have the "mailto:" prefix.
+     """
+     repr_attributes = ("target", "mailto")
+-    pattern = re.compile(r"(?<!\\)(?:\\\\)*<([A-Za-z][A-Za-z0-9+.-]{1,31}:[^ <>]*?|[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*)>")
++    # The URI form excludes ASCII control characters AND space (\x00-\x20), '<'
++    # and '>' -- per CommonMark / cmark ([^\x00-\x20<>]). The previous [^ <>]
++    # only excluded space, so a tab or newline in the URI wrongly formed an
++    # autolink (e.g. "<hs:\t>").
++    pattern = re.compile(r"(?<!\\)(?:\\\\)*<([A-Za-z][A-Za-z0-9+.-]{1,31}:[^\x00-\x20<>]*?|[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*)>")
+     parse_inner = False
+ 
+     def __init__(self, match):
+diff --git a/test/test_span_token.py b/test/test_span_token.py
+index 700bc18..08aac61 100644
+--- a/test/test_span_token.py
++++ b/test/test_span_token.py
+@@ -125,6 +125,16 @@ class TestAutoLink(TestBranchToken):
+     def test_parse(self):
+         self._test_parse(span_token.AutoLink, '<ftp://foo.com>', 'ftp://foo.com', target='ftp://foo.com')
+ 
++    def test_uri_rejects_control_chars(self):
++        # A URI autolink may not contain ASCII control characters or space
++        # (CommonMark: scheme ':' then chars other than control/space/<>).
++        # tab, newline and other C0 controls must NOT form an autolink.
++        for ch in ('\t', '\n', '\x01', ' '):
++            self.assertIsNone(span_token.AutoLink.pattern.match('<hs:' + ch + 'x>'),
++                              repr(ch))
++        # a control-free URI still parses
++        self.assertIsNotNone(span_token.AutoLink.pattern.match('<hs:a~b>'))
++
+ 
+ class TestImage(TestBranchToken):
+     def test_parse(self):
+-- 
+2.43.0
+

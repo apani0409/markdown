@@ -1,0 +1,60 @@
+From 6354d6bc07e66422f8c5fee842ace6f1da668e49 Mon Sep 17 00:00:00 2001
+From: cmd <a@b.c>
+Date: Mon, 29 Jun 2026 21:48:53 +0000
+Subject: [PATCH 2/2] Fix: a bare '.' or ')' must not be parsed as an ordered
+ list
+
+The List/ListItem start patterns used \d{0,9}[.)], allowing ZERO digits, so a
+lone '.' or ')' was treated as an empty ordered list item instead of ordinary
+text. CommonMark requires 1-9 digits before the '.'/')' delimiter. Use
+\d{1,9}[.)]. Adds tests (the existing parse_marker bad-line list missed these).
+---
+ mistletoe/block_token.py | 4 ++--
+ test/test_block_token.py | 9 +++++++++
+ 2 files changed, 11 insertions(+), 2 deletions(-)
+
+diff --git a/mistletoe/block_token.py b/mistletoe/block_token.py
+index bf66570..73f9a15 100644
+--- a/mistletoe/block_token.py
++++ b/mistletoe/block_token.py
+@@ -486,7 +486,7 @@ class List(BlockToken):
+         start (NoneType or int): None if unordered, starting number if ordered.
+     """
+     repr_attributes = BlockToken.repr_attributes + ("loose", "start")
+-    pattern = re.compile(r' {0,3}(?:\d{0,9}[.)]|[+\-*])(?:[ \t]*$|[ \t]+)')
++    pattern = re.compile(r' {0,3}(?:\d{1,9}[.)]|[+\-*])(?:[ \t]*$|[ \t]+)')
+ 
+     def __init__(self, matches):
+         self.children = [ListItem(*match) for match in matches]
+@@ -558,7 +558,7 @@ class ListItem(BlockToken):
+         loose (bool): whether the list is loose.
+     """
+     repr_attributes = BlockToken.repr_attributes + ("leader", "indentation", "prepend", "loose")
+-    pattern = re.compile(r'( {0,3})(\d{0,9}[.)]|[+\-*])($|\s+)')
++    pattern = re.compile(r'( {0,3})(\d{1,9}[.)]|[+\-*])($|\s+)')
+     continuation_pattern = re.compile(r'([ \t]*)(\S.*\n|\n)')
+ 
+     def __init__(self, parse_buffer, indentation, prepend, leader, line_number=None):
+diff --git a/test/test_block_token.py b/test/test_block_token.py
+index d88360d..7d2fc1d 100644
+--- a/test/test_block_token.py
++++ b/test/test_block_token.py
+@@ -222,6 +222,15 @@ class TestListItem(unittest.TestCase):
+         for line in bad_lines:
+             self.assertFalse(block_token.ListItem.parse_marker(line))
+ 
++    def test_parse_marker_rejects_bare_ordered_punctuation(self):
++        # an ordered list marker needs 1-9 digits before "." or ")"; a bare
++        # "." or ")" is not a marker (it is ordinary text).
++        for line in ('.\n', ')\n', '.', ')', '. foo\n', ') bar\n'):
++            self.assertFalse(block_token.ListItem.parse_marker(line))
++        # real ordered markers still parse
++        for line in ('1.\n', '1) x\n', '12.\n'):
++            self.assertTrue(block_token.ListItem.parse_marker(line))
++
+     def test_tokenize(self):
+         lines = [' -    foo\n',
+                  '   bar\n',
+-- 
+2.43.0
+

@@ -1,0 +1,117 @@
+From bea79db6501df7b98a8825b123196e0dbcc00a3c Mon Sep 17 00:00:00 2001
+From: cmd <a@b.c>
+Date: Tue, 30 Jun 2026 07:58:50 +0000
+Subject: [PATCH 4/4] Fix: O(n^2) blowup on balanced bracket runs in
+ find_link_image
+
+find_link_image iterated a reversed COPY of the delimiter list
+(`for d in delimiters[::-1]`, O(n)) and removed the matched opener with
+`delimiters.remove(d)` (an O(n) by-value scan) on every ']'. On input like
+'['*n + ']'*n this is O(n^2): the opener sits at the end of the list, so each
+close pays O(n) to copy + O(n) to scan-and-remove. Profiling '['*4000+']'*4000
+shows list.remove = 57% of runtime.
+
+Iterate by index from the end and delete the matched opener by index
+(`del delimiters[i]`). The index `i` is exactly what the old loop computed and
+passed to process_emphasis / deactivate_delimiters, so this is
+behaviour-preserving, and end-of-list deletion is O(1) -> linear.
+
+Verified: 0 output diffs vs original across spec.txt (652) and 12k
+bracket-heavy fuzz inputs; '['*n+']'*n drops from exponent ~1.96 to ~0.99.
+Adds a timing-ratio regression test and bracket/image correctness tests.
+---
+ mistletoe/core_tokens.py | 15 ++++++++++-----
+ test/test_core_tokens.py | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 49 insertions(+), 5 deletions(-)
+
+diff --git a/mistletoe/core_tokens.py b/mistletoe/core_tokens.py
+index 4a21dbd..8fb2c42 100644
+--- a/mistletoe/core_tokens.py
++++ b/mistletoe/core_tokens.py
+@@ -87,13 +87,19 @@ def find_core_tokens(string, root):
+ 
+ 
+ def find_link_image(string, offset, delimiters, matches, root=None):
+-    i = len(delimiters) - 1
+-    for delimiter in delimiters[::-1]:
++    # Iterate by index from the end (instead of over a reversed copy) and delete
++    # the matched delimiter by index. The previous code used
++    # ``for d in delimiters[::-1]`` (an O(n) copy) and ``delimiters.remove(d)``
++    # (an O(n) by-value scan), so a run of closing brackets such as ``[``*n
++    # ``]``*n was O(n^2). The opener is found and removed at a known index, so
++    # this is behaviour-preserving and O(1) for the common end-of-list case.
++    for i in range(len(delimiters) - 1, -1, -1):
++        delimiter = delimiters[i]
+         # found a link/image delimiter
+         if delimiter.type in ('[', '!['):
+             # not active, remove delimiter
+             if not delimiter.active:
+-                delimiters.remove(delimiter)
++                del delimiters[i]
+                 return offset
+             match = match_link_image(string, offset, delimiter, root)
+             # found match
+@@ -108,9 +114,8 @@ def find_link_image(string, offset, delimiters, matches, root=None):
+                 # shift index till end of match
+                 return match.end() - 1
+             # no match, remove delimiter
+-            delimiters.remove(delimiter)
++            del delimiters[i]
+             return offset
+-        i -= 1
+     # no link/image delimiter
+     return offset
+ 
+diff --git a/test/test_core_tokens.py b/test/test_core_tokens.py
+index 73f2a2f..82fca0f 100644
+--- a/test/test_core_tokens.py
++++ b/test/test_core_tokens.py
+@@ -87,6 +87,45 @@ class TestCoreTokens(TestCase):
+         self.assertEqual(small, big)
+         self.assertLess(big, 10)
+ 
++    def test_balanced_bracket_runs_do_not_rescan_quadratically(self):
++        # '['*n + ']'*n used to be O(n^2): find_link_image iterated a reversed
++        # COPY of the delimiter list and removed the opener with list.remove
++        # (an O(n) by-value scan) on every ']'. Index-based iteration + delete
++        # keeps it linear. Use a min-of-3 timing ratio (robust to noise) and a
++        # generous bound that still separates linear from quadratic growth.
++        import time
++        import mistletoe
++
++        def secs(n):
++            s = '[' * n + ']' * n
++            t0 = time.perf_counter()
++            mistletoe.markdown(s)
++            return time.perf_counter() - t0
++
++        secs(2000)  # warm up
++        small = min(secs(2000) for _ in range(3))
++        big = min(secs(8000) for _ in range(3))
++        # input length grows 4x; linear ~4x, quadratic ~16x. Generous bound.
++        self.assertLess(big, small * 9)
++
++    def test_link_and_image_brackets_render_correctly(self):
++        # Exercises the index-based delimiter removal paths in find_link_image
++        # (active match, no-match removal, nested, deactivation, images).
++        import mistletoe
++        cases = {
++            '[a](b)': '<p><a href="b">a</a></p>\n',
++            '[a]': '<p>[a]</p>\n',
++            '[a][b]': '<p>[a][b]</p>\n',
++            '![x](y)': '<p><img src="y" alt="x" /></p>\n',
++            '[[a]](b)': '<p><a href="b">[a]</a></p>\n',
++            '[a](b) [c](d)': '<p><a href="b">a</a> <a href="d">c</a></p>\n',
++            '[a [b](c) d](e)': '<p>[a <a href="c">b</a> d](e)</p>\n',
++            '[]()': '<p><a href=""></a></p>\n',
++            '[*x*](y)': '<p><a href="y"><em>x</em></a></p>\n',
++        }
++        for md, expected in cases.items():
++            self.assertEqual(mistletoe.markdown(md), expected, md)
++
+     def test_code_span_after_brackets_still_parsed(self):
+         # The rescan-skipping optimization must not drop a code span that comes
+         # after bracket handling: the cached match is only reused while valid.
+-- 
+2.43.0
+

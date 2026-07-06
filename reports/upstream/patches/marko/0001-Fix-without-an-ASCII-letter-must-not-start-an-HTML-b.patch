@@ -1,0 +1,73 @@
+From 32d3f7e63285a41aa1e38aab71fad6acedcdbb0f Mon Sep 17 00:00:00 2001
+From: cmd <a@b.c>
+Date: Mon, 29 Jun 2026 21:26:53 +0000
+Subject: [PATCH 1/2] Fix: '<!' without an ASCII letter must not start an HTML
+ block
+
+HTML block start condition 4 (CommonMark) requires '<!' followed by an ASCII
+letter. marko matched a bare '<!', so inputs like '<!', '<!>' and '<!-' were
+emitted as raw HTML declaration blocks instead of escaped as text. The check
+also preceded the '<![CDATA[' (condition 5) check, leaving the latter dead.
+Require an ASCII letter for condition 4 and test condition 5 first.
+
+Fixes the divergence from cmark/CommonMark; adds tests.
+---
+ marko/block.py      |  6 +++---
+ tests/test_basic.py | 21 +++++++++++++++++++++
+ 2 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/marko/block.py b/marko/block.py
+index 8dcea34..47269ab 100644
+--- a/marko/block.py
++++ b/marko/block.py
+@@ -300,12 +300,12 @@ class HTMLBlock(BlockElement):
+         if source.expect_re(r" {,3}<\?"):
+             source.context.html_end = re.compile(r"\?>")
+             return 3
+-        if source.expect_re(r" {,3}<!"):
+-            source.context.html_end = re.compile(r">")
+-            return 4
+         if source.expect_re(r" {,3}<!\[CDATA\["):
+             source.context.html_end = re.compile(r"\]\]>")
+             return 5
++        if source.expect_re(r" {,3}<![A-Za-z]"):
++            source.context.html_end = re.compile(r">")
++            return 4
+         block_tag = r"(?:{})".format("|".join(patterns.tags))
+         if source.expect_re(r"(?im) {,3}</?%s(?: +|/?>|$)" % block_tag):
+             source.context.html_end = None
+diff --git a/tests/test_basic.py b/tests/test_basic.py
+index 8215d90..3a9c445 100644
+--- a/tests/test_basic.py
++++ b/tests/test_basic.py
+@@ -17,6 +17,27 @@ class TestBasic:
+     def test_non_lf_line_terminators_no_infinite_loop(self, text):
+         assert marko.convert(text) == marko.convert("-\n-")
+ 
++    @pytest.mark.parametrize(
++        "text,expected",
++        [
++            # "<!" must be followed by an ASCII letter to start an HTML
++            # declaration block (CommonMark HTML blocks, start condition 4);
++            # otherwise it is ordinary text.
++            ("<!", "<p>&lt;!</p>\n"),
++            ("<!>", "<p>&lt;!&gt;</p>\n"),
++            ("<!-", "<p>&lt;!-</p>\n"),
++            # a valid declaration is still an HTML block
++            ("<!FOO>\n", "<!FOO>\n"),
++        ],
++    )
++    def test_html_declaration_requires_ascii_letter(self, text, expected):
++        assert marko.convert(text) == expected
++
++    def test_cdata_html_block_is_not_swallowed_by_declaration(self):
++        # "<![CDATA[ ... ]]>" is start condition 5, ending at "]]>", not a
++        # declaration ending at the first ">".
++        assert marko.convert("<![CDATA[ x > y ]]>\n") == "<![CDATA[ x > y ]]>\n"
++
+     def test_xml_renderer(self):
+         text = "[Overview](#overview)\n\n* * *"
+         markdown = marko.Markdown(renderer=XMLRenderer)
+-- 
+2.43.0
+

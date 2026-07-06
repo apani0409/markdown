@@ -1,0 +1,91 @@
+From 36fc4a6a0e0c53c38812b5512a3f587dc331addd Mon Sep 17 00:00:00 2001
+From: cmd <a@b.c>
+Date: Tue, 30 Jun 2026 08:13:55 +0000
+Subject: [PATCH] Fix: cap link-destination paren nesting at 32 (matches cmark;
+ fixes O(n^2) on '[]('*n)
+
+_parse_link_dest_title scanned a bare (non-<>) link destination counting nested
+parentheses with no depth limit, so '[]('*n -- a run of unbalanced '(' with no
+closing ')' -- made every ']' scan to end-of-input: O(n^2) (_parse_link_dest_title
+= 80% of runtime, with 6M len() calls).
+
+CommonMark's reference parser (cmark, manual_scan_link_url_2) caps destination
+paren nesting at 32 (if (nb_p > 32) return -1) and rejects anything deeper.
+marko had no cap, so it also *mis-parsed* destinations nested >32 deep as links
+where cmark/the spec treat them as literal text. marko's 'pairs' counter matches
+cmark's nb_p exactly, so 'if pairs > 32: raise ParseError()' both:
+  * aligns marko with cmark (depth<=32 link, depth>=33 not a link), and
+  * bounds the scan to ~32 chars per ']' -> '[]('*n becomes linear.
+
+Verified: patched marko agrees with cmark at depths 1..100; 0 output diffs vs
+original across spec.txt (652) and 12k bracket-heavy fuzz inputs; '[]('*n drops
+from exponent ~1.99 to ~0.93. Full suite: 1412 passed. Adds boundary + scaling
+tests.
+
+Note: '['*n+']'*n remains quadratic from an independent source (is_paired
+re-scans the growing link text on every ']'); left for separate work.
+---
+ marko/inline_parser.py |  6 ++++++
+ tests/test_basic.py    | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 35 insertions(+)
+
+diff --git a/marko/inline_parser.py b/marko/inline_parser.py
+index e73d7c6..8310446 100644
+--- a/marko/inline_parser.py
++++ b/marko/inline_parser.py
+@@ -315,6 +315,12 @@ def _parse_link_dest_title(
+                 raise ParseError("Invalid character in link destination")
+             elif c == "(":
+                 pairs += 1
++                # CommonMark/cmark cap parenthesis nesting in a bare link
++                # destination at 32; deeper nesting is not a valid destination.
++                # This also stops a run of unbalanced '(' (e.g. '[]('*n) from
++                # scanning to end-of-input on every ']' -- an O(n^2) DoS vector.
++                if pairs > 32:
++                    raise ParseError("Link destination nesting too deep")
+             elif c == ")":
+                 if pairs > 0:
+                     pairs -= 1
+diff --git a/tests/test_basic.py b/tests/test_basic.py
+index b6674e4..4552b6c 100644
+--- a/tests/test_basic.py
++++ b/tests/test_basic.py
+@@ -38,6 +38,35 @@ class TestBasic:
+         # declaration ending at the first ">".
+         assert marko.convert("<![CDATA[ x > y ]]>\n") == "<![CDATA[ x > y ]]>\n"
+ 
++    @pytest.mark.parametrize(
++        "depth,is_link",
++        [(32, True), (33, False), (100, False)],
++    )
++    def test_link_dest_paren_nesting_capped_at_32(self, depth, is_link):
++        # A bare link destination may nest parentheses at most 32 deep (matching
++        # CommonMark's reference cmark); deeper nesting is literal text. This cap
++        # also keeps "[]("*n linear: the destination scan bails after ~32 chars
++        # instead of running to end-of-input on every "]".
++        text = "[a](" + "(" * depth + "x" + ")" * depth + ")"
++        assert ("<a href" in marko.convert(text)) is is_link
++
++    def test_unbalanced_paren_run_does_not_rescan_quadratically(self):
++        # "[]("*n is a run of unbalanced "(" with no closing ")"; without the
++        # nesting cap the destination scan ran to end-of-input on every "]"
++        # (O(n^2)). With the cap it bails after ~32 chars -> linear.
++        import time
++
++        def secs(n):
++            t0 = time.perf_counter()
++            marko.convert("[](" * n)
++            return time.perf_counter() - t0
++
++        secs(1000)  # warm up
++        small = min(secs(1000) for _ in range(3))
++        big = min(secs(4000) for _ in range(3))
++        # input grows 4x; linear ~4x, quadratic ~16x. Generous bound.
++        assert big < small * 9
++
+     @pytest.mark.parametrize(
+         "text,expected",
+         [
+-- 
+2.43.0
+

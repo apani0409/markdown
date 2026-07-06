@@ -1,0 +1,70 @@
+From 56607a8c0e037dab5fda9d04c2e0bac2cb7737f3 Mon Sep 17 00:00:00 2001
+From: cmd <a@b.c>
+Date: Mon, 6 Jul 2026 05:21:08 +0000
+Subject: [PATCH] Fix: ATX heading over-strips a '#'-only content run
+
+Heading.start cleared the content whenever it consisted only of '#'
+(set(content) == {'#'}), to render '# #' as an empty heading. But that also
+dropped legitimate heading text made of '#':
+
+    mistletoe.markdown('# # #')     # was '<h1></h1>';   cmark: '<h1>#</h1>'
+    mistletoe.markdown('#  ##  #')  # was '<h1></h1>';   cmark: '<h1>##</h1>'
+
+A '#' run is the closing sequence only when no *separate* '#' closing run was
+matched (group 3). Clear the content only in that case
+(set(content) == {'#'} and '#' not in group(3)), so '# #' stays an empty heading
+while '# # #' keeps its content.
+
+Verified vs cmark on the ATX close-sequence matrix; isolated before/after diff
+over spec.txt + 15k ATX-shaped inputs is strictly improving (638 fixes, 0
+regressions). 350 tests pass. Adds a test.
+---
+ mistletoe/block_token.py |  6 +++++-
+ test/test_block_token.py | 14 ++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/mistletoe/block_token.py b/mistletoe/block_token.py
+index a0e58b8..fbb72f4 100644
+--- a/mistletoe/block_token.py
++++ b/mistletoe/block_token.py
+@@ -184,7 +184,11 @@ class Heading(BlockToken):
+             return False
+         cls.level = len(match_obj.group(1))
+         cls.content = (match_obj.group(2) or '').strip()
+-        if set(cls.content) == {'#'}:
++        # A run consisting only of '#' is ordinary heading text UNLESS it is
++        # itself the closing sequence -- i.e. no *separate* '#' closing run was
++        # matched into group 3. '# #' is an empty heading (the '#' is the closing
++        # sequence), but '# # #' has content '#' and '#  ##  #' has content '##'.
++        if set(cls.content) == {'#'} and '#' not in (match_obj.group(3) or ''):
+             cls.content = ''
+         cls.closing_sequence = (match_obj.group(3) or '').strip()
+         return True
+diff --git a/test/test_block_token.py b/test/test_block_token.py
+index cb6b29e..cf1ec98 100644
+--- a/test/test_block_token.py
++++ b/test/test_block_token.py
+@@ -41,6 +41,20 @@ class TestAtxHeading(TestToken):
+         arg = '####### paragraph'
+         self._test_match(block_token.Paragraph, lines, arg)
+ 
++    def test_hash_content_not_over_stripped(self):
++        # A '#' run between the opening marker and the closing sequence is
++        # heading text; only a '#' run that *is* the closing sequence is dropped.
++        cases = {
++            '# #\n': '',       # the trailing '#' is the closing sequence
++            '# ##\n': '',
++            '# # #\n': '#',    # the middle '#' is content
++            '#  ##  #\n': '##',
++            '# a #\n': 'a',
++        }
++        for line, content in cases.items():
++            self.assertTrue(block_token.Heading.start(line), line)
++            self.assertEqual(block_token.Heading.content, content, line)
++
+     def test_heading_in_paragraph(self):
+         lines = ['foo\n', '# heading\n', 'bar\n']
+         token1, token2, token3 = block_token.tokenize(lines)
+-- 
+2.43.0
+

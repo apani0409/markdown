@@ -1,0 +1,90 @@
+From 4b6e588812cda5ed27dd495b605a2a1adddf60ec Mon Sep 17 00:00:00 2001
+From: cmd <a@b.c>
+Date: Tue, 30 Jun 2026 08:05:34 +0000
+Subject: [PATCH] Fix: cap link-destination paren nesting at 32 (matches cmark;
+ fixes O(n^2) on '[]('*n)
+
+match_link_dest scanned a bare (non-<>) link destination counting nested
+parentheses with no depth limit, so '[]('*n -- a run of unbalanced '(' with no
+closing ')' -- made every ']' scan to end-of-input looking for a close that
+never comes: O(n^2) (profiling '[]('*2000: match_link_dest = 98% of runtime).
+
+CommonMark's reference parser (cmark, manual_scan_link_url_2) caps destination
+paren nesting at 32 and rejects anything deeper. mistletoe had no cap, so it
+also *mis-parsed* destinations nested >32 deep as links where cmark (and the
+spec) treat them as literal text. Applying the same cap therefore both:
+  * aligns mistletoe with cmark (depth<=32 link, depth>=33 not a link), and
+  * bounds the scan to ~32 chars per ']' -> '[]('*n becomes linear.
+
+Verified: patched mistletoe agrees with cmark at depths 1..100; 0 output diffs
+vs original across spec.txt (652) and 12k bracket-heavy fuzz inputs (which never
+nest >32 deep); '[]('*n drops from exponent ~1.99 to ~1.1. Adds tests for the
+32/33 boundary and for linear scaling on '[]('*n. Full suite: 342 passed.
+---
+ mistletoe/core_tokens.py |  8 ++++++++
+ test/test_core_tokens.py | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+)
+
+diff --git a/mistletoe/core_tokens.py b/mistletoe/core_tokens.py
+index 8fb2c42..d1197b5 100644
+--- a/mistletoe/core_tokens.py
++++ b/mistletoe/core_tokens.py
+@@ -262,6 +262,14 @@ def match_link_dest(string, offset):
+             elif not escaped:
+                 if c == '(':
+                     count += 1
++                    # CommonMark/cmark cap parenthesis nesting in a bare link
++                    # destination at 32; deeper nesting is not a valid
++                    # destination. Bailing here also keeps a run of unbalanced
++                    # '(' (e.g. '[]('*n) from re-scanning to end-of-input on
++                    # every ']' -- an O(n^2) DoS vector. (count starts at 1 for
++                    # the link's own '(', so depth>32 means count>33.)
++                    if count > 33:
++                        return None
+                 elif c == ')':
+                     count -= 1
+             elif is_control_char(c):
+diff --git a/test/test_core_tokens.py b/test/test_core_tokens.py
+index 82fca0f..d31134f 100644
+--- a/test/test_core_tokens.py
++++ b/test/test_core_tokens.py
+@@ -126,6 +126,36 @@ class TestCoreTokens(TestCase):
+         for md, expected in cases.items():
+             self.assertEqual(mistletoe.markdown(md), expected, md)
+ 
++    def test_link_dest_paren_nesting_capped_at_32(self):
++        # A bare link destination may nest parentheses at most 32 deep (matching
++        # CommonMark's reference cmark). Depth <=32 is a link; depth >=33 is not.
++        # This cap is also what keeps '[]('*n linear: match_link_dest bails after
++        # ~32 unbalanced '(' instead of scanning to end-of-input on every ']'.
++        import mistletoe
++        for depth, is_link in ((32, True), (33, False), (100, False)):
++            md = '[a](' + '(' * depth + 'x' + ')' * depth + ')'
++            html = mistletoe.markdown(md)
++            self.assertEqual('<a href' in html, is_link, f'depth={depth}')
++
++    def test_link_open_runs_do_not_rescan_quadratically(self):
++        # '[]('*n is a run of unbalanced '(' with no closing ')'. Without the
++        # nesting cap, match_link_dest scanned to end-of-input on every ']'
++        # (O(n^2)). With the cap it bails after ~32 chars -> linear.
++        import time
++        import mistletoe
++
++        def secs(n):
++            s = '[](' * n
++            t0 = time.perf_counter()
++            mistletoe.markdown(s)
++            return time.perf_counter() - t0
++
++        secs(1000)  # warm up
++        small = min(secs(1000) for _ in range(3))
++        big = min(secs(4000) for _ in range(3))
++        # input grows 4x; linear ~4x, quadratic ~16x. Generous bound.
++        self.assertLess(big, small * 9)
++
+     def test_code_span_after_brackets_still_parsed(self):
+         # The rescan-skipping optimization must not drop a code span that comes
+         # after bracket handling: the cached match is only reused while valid.
+-- 
+2.43.0
+

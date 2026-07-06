@@ -1,0 +1,73 @@
+From 486d88c6ebab2745c8e29303fd24cfcae0d0bb15 Mon Sep 17 00:00:00 2001
+From: cmd <a@b.c>
+Date: Tue, 30 Jun 2026 08:38:21 +0000
+Subject: [PATCH] Fix: line break in image alt text dropped / leaks literal
+ chars
+
+render_to_plain (used for image 'alt') returned token.content for a LineBreak --
+but a LineBreak's content is only its *leading* characters (the spaces before a
+soft break, or '  '/'\' before a hard break). So:
+
+    '![a\nb]()'    -> alt="ab"    (soft break dropped -> words glued)
+    '![a  \nb]()'  -> alt="a  b"  (hard break's two spaces leak in)
+    '![a\\\nb]()'  -> alt="a\\b"   (hard break's backslash leaks in)
+
+CommonMark: a soft line break renders as a space or a line ending, never nothing.
+Render any LineBreak in plain-text context as a single space, matching cmark
+exactly (alt="a b" in all three cases above).
+
+Verified: agrees with cmark on soft/hard/backslash breaks and multi-line alts;
+isolated original-vs-patched diff over spec.txt + 12k image-shaped inputs touches
+only <img> alt text, 0 other changes. Adds tests. Full suite: 348 passed.
+---
+ mistletoe/html_renderer.py |  7 +++++++
+ test/test_html_renderer.py | 15 +++++++++++++++
+ 2 files changed, 22 insertions(+)
+
+diff --git a/mistletoe/html_renderer.py b/mistletoe/html_renderer.py
+index cc24d2d..a30ae67 100644
+--- a/mistletoe/html_renderer.py
++++ b/mistletoe/html_renderer.py
+@@ -52,6 +52,13 @@ class HtmlRenderer(BaseRenderer):
+         if token.children is not None:
+             inner = [self.render_to_plain(child) for child in token.children]
+             return ''.join(inner)
++        if isinstance(token, span_token.LineBreak):
++            # A line break carries no textual content of its own; in a
++            # plain-text context (image `alt`) render it as a single space,
++            # matching cmark. Returning token.content (the break's leading
++            # spaces / backslash) dropped soft breaks ("![a\nb]()" -> alt="ab")
++            # and leaked "  "/"\\" into the alt text for hard breaks.
++            return ' '
+         return html.escape(token.content)
+ 
+     def render_strong(self, token: span_token.Strong) -> str:
+diff --git a/test/test_html_renderer.py b/test/test_html_renderer.py
+index df1b071..9570a54 100644
+--- a/test/test_html_renderer.py
++++ b/test/test_html_renderer.py
+@@ -158,6 +158,21 @@ class TestHtmlRendererEscaping(TestCase):
+             expected = '<p>&lt;div&gt;&lt;br&gt; as plain text&lt;/div&gt;</p>\n'
+             self.assertEqual(renderer.render(token), expected)
+ 
++    @parameterized.expand([
++        ('![a\nb]()\n', 'a b'),      # soft break -> space (was dropped: "ab")
++        ('![a  \nb]()\n', 'a b'),    # hard break -> space (was leaked: "a  b")
++        ('![a\\\nb]()\n', 'a b'),    # backslash hard break (was leaked: "a\\b")
++        ('![x\ny\nz]()\n', 'x y z'),
++        ('![plain]()\n', 'plain'),
++    ])
++    def test_image_alt_line_break_is_space(self, text, expected_alt):
++        # A line break inside image alt text must not be dropped (CommonMark:
++        # a soft break renders as a space or line ending, never nothing). Render
++        # it as a single space, matching cmark.
++        with HtmlRenderer() as renderer:
++            html = renderer.render(Document([text]))
++        self.assertIn('alt="%s"' % expected_alt, html)
++
+ 
+ class TestHtmlRendererFootnotes(TestCase):
+     def setUp(self):
+-- 
+2.43.0
+
