@@ -1,0 +1,63 @@
+From 1de91d24d811d18780cbe6c023ac76da2922e6f7 Mon Sep 17 00:00:00 2001
+From: cmd <a@b.c>
+Date: Mon, 6 Jul 2026 05:12:41 +0000
+Subject: [PATCH] Fix: a setext underline must be all '=' or all '-', not a mix
+
+Paragraph.setext_pattern was r' {0,3}(=|-)+ *$', where (=|-)+ matches a mix of
+'=' and '-'. So 'a' followed by an underline like '=-' or '-=' was wrongly
+parsed as a setext heading; CommonMark requires the underline to be a sequence
+of *only* '=' or *only* '-' (otherwise the line is ordinary paragraph text).
+
+Use (=+|-+). Verified: matches cmark on the underline-acceptance matrix; an
+isolated before/after diff over spec.txt + 15k setext-shaped inputs is strictly
+improving -- 1111 inputs move to cmark's output, 0 regressions. Adds tests.
+
+(A related deviation -- a setext underline with a trailing tab is rejected -- is
+entangled with mistletoe's separate 'setext underline as a lazy continuation
+line in a block quote / list item' bug and is left for that fix.)
+---
+ mistletoe/block_token.py |  5 ++++-
+ test/test_block_token.py | 11 +++++++++++
+ 2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/mistletoe/block_token.py b/mistletoe/block_token.py
+index 73f9a15..a0e58b8 100644
+--- a/mistletoe/block_token.py
++++ b/mistletoe/block_token.py
+@@ -314,7 +314,10 @@ class Paragraph(BlockToken):
+     Paragraph token. (["some\\n", "continuous\\n", "lines\\n"])
+     This is a leaf block token. Its children are inline (span) tokens.
+     """
+-    setext_pattern = re.compile(r' {0,3}(=|-)+ *$')
++    # A setext underline is a run of *only* '=' or *only* '-' (not mixed).
++    # The previous r'(=|-)+ *$' allowed mixed runs like '=-' / '-=', which
++    # CommonMark treats as an ordinary paragraph line, not an underline.
++    setext_pattern = re.compile(r' {0,3}(=+|-+) *$')
+     parse_setext = True  # can be disabled by Quote
+ 
+     def __new__(cls, lines):
+diff --git a/test/test_block_token.py b/test/test_block_token.py
+index 7d2fc1d..cb6b29e 100644
+--- a/test/test_block_token.py
++++ b/test/test_block_token.py
+@@ -64,6 +64,17 @@ class TestSetextHeading(TestToken):
+         with self.assertRaises(StopIteration):
+             next(tokens)
+ 
++    def test_underline_must_be_single_char_type(self):
++        # A setext underline is a run of only '=' or only '-'. A mixed run such
++        # as '=-' is not an underline (the paragraph stays a paragraph).
++        from mistletoe.block_token import Paragraph
++        self.assertIsNone(Paragraph.setext_pattern.match('=-'))
++        self.assertIsNone(Paragraph.setext_pattern.match('-='))
++        self.assertIsNone(Paragraph.setext_pattern.match('==-'))
++        self.assertIsNotNone(Paragraph.setext_pattern.match('=='))
++        self.assertIsNotNone(Paragraph.setext_pattern.match('---'))
++        self.assertIsNotNone(Paragraph.setext_pattern.match('=  '))
++
+ 
+ class TestQuote(unittest.TestCase):
+     def test_match(self):
+-- 
+2.43.0
+

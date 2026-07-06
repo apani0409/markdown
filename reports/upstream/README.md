@@ -16,6 +16,7 @@ session that produced these had read-only, single-repo GitHub scope).
 | [mistletoe-image-alt-softbreak.md](mistletoe-image-alt-softbreak.md) · **[PR](mistletoe-image-alt-softbreak-PR.md)** ✅ | mistletoe | line break dropped/leaks literal chars in image `alt` — **verified fix, 348 tests pass** | medium |
 | [mistletoe-list-marker-overrecognition.md](mistletoe-list-marker-overrecognition.md) · **[PR](mistletoe-list-marker-PR.md)** ✅ | mistletoe | `.`/`)` wrongly parsed as an empty list — **verified fix, 336 tests pass** | medium |
 | [mistletoe-setext-in-blockquote.md](mistletoe-setext-in-blockquote.md) | mistletoe | setext heading missed inside a block quote | medium |
+| **[PR](mistletoe-setext-mixed-underline-PR.md)** ✅ | mistletoe | mixed `=-` wrongly accepted as a setext underline — **verified fix, strictly improving (1111 fixes, 0 regressions), 350 tests** | medium |
 | [mistletoe-autolink-whitespace.md](mistletoe-autolink-whitespace.md) · **[PR](mistletoe-autolink-whitespace-PR.md)** ✅ | mistletoe | autolink accepts control chars (tab/newline) in URI — **verified fix, 343 tests pass** | medium |
 | [mistletoe-backslash-hardbreak-cr.md](mistletoe-backslash-hardbreak-cr.md) | mistletoe | backslash hard break missed before CR | low |
 | [markdown-it-py-image-alt-text.md](markdown-it-py-image-alt-text.md) · **[PR](markdown-it-py-image-alt-PR.md)** ✅ | markdown-it-py | image `alt` drops entities/escapes/code/hard-breaks — **verified fix, alt matches cmark, spec 652/652 unchanged** | medium |
